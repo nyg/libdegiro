@@ -9,3 +9,7 @@ coverage/
 # Personal DEGIRO exports. Anchored to the repo root so the synthetic
 # test/fixtures/Account.csv is still tracked.
 /Account.csv
+
+# A real Account.csv dropped anywhere under examples/ (the rule above is
+# anchored to the repo root, which keeps test/fixtures/Account.csv tracked).
+examples/**/*.csv

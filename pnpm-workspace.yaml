@@ -1,4 +1,13 @@
+packages:
+  # The library itself, so `libdegiro: workspace:*` resolves for the examples.
+  - '.'
+  - 'examples/*'
+
 allowBuilds:
-  # esbuild ships prebuilt platform binaries; its install script is not needed.
+  # Both ship prebuilt platform binaries as optional deps; their install scripts
+  # are only a source-build fallback and are not needed here.
+  '@tailwindcss/oxide': false
   esbuild: false
+minimumReleaseAgeExclude:
+  - recharts@3.10.1
 verifyDepsBeforeRun: false
