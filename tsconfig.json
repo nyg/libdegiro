@@ -22,7 +22,12 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // tsup's .d.ts build passes `baseUrl` unconditionally (rollup dts plugin:
+    // `baseUrl: compilerOptions.baseUrl || "."`), which TypeScript 6 rejects as
+    // deprecated. Drop this once tsup stops setting it.
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src", "test", "*.ts"]
 }
