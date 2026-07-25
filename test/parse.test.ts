@@ -1,15 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, createReadStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import {
-  parseDegiroCsv,
-  parseDegiroFile,
-  parseDegiroFileSync,
-  parseDegiroStream,
-  frenchDialect,
-  UnknownDialectError,
-  DegiroError,
-} from '../src/index';
+import { parseDegiroCsv, frenchDialect, UnknownDialectError, DegiroError } from '../src/index';
+import { parseDegiroFile, parseDegiroFileSync, parseDegiroStream } from '../src/node';
 
 const fixturePath = fileURLToPath(new URL('./fixtures/Account.csv', import.meta.url));
 const fixture = readFileSync(fixturePath, 'utf8');

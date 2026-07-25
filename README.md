@@ -14,6 +14,7 @@ to add.
 - 🪶 **Lenient parsing** — per-row problems are collected, never thrown
 - 🌊 **Streaming** parser for very large files
 - ✅ **Balance reconciliation** and **portfolio** aggregation built in
+- 🌍 **Runs anywhere** — the core entry has no Node builtins; Node I/O is opt-in
 
 ---
 
@@ -23,7 +24,18 @@ to add.
 pnpm add libdegiro      # or: npm i libdegiro / yarn add libdegiro
 ```
 
-Requires Node 18+. ESM only.
+ESM only.
+
+### Entry points
+
+| Import           | Contents                                                 | Requires    |
+| ---------------- | -------------------------------------------------------- | ----------- |
+| `libdegiro`      | Parsing, classification, grouping, validation, portfolio | Any runtime |
+| `libdegiro/node` | File and stream helpers                                  | Node 18+    |
+
+`libdegiro` imports no Node builtins, so it bundles as-is for browsers, Deno,
+workers and edge runtimes. Anything touching `node:fs` or `node:stream` lives
+behind `libdegiro/node` — import it only where you have a filesystem.
 
 ---
 
@@ -45,20 +57,20 @@ for (const tx of result.transactions) {
 }
 ```
 
-### From a file
+### From a file (Node)
 
 ```ts
-import { parseDegiroFile, parseDegiroFileSync } from 'libdegiro';
+import { parseDegiroFile, parseDegiroFileSync } from 'libdegiro/node';
 
 const result = await parseDegiroFile('./Account.csv');
 const sync = parseDegiroFileSync('./Account.csv');
 ```
 
-### From a stream (large files)
+### From a stream (Node, large files)
 
 ```ts
 import { createReadStream } from 'node:fs';
-import { parseDegiroStream } from 'libdegiro';
+import { parseDegiroStream } from 'libdegiro/node';
 
 const result = await parseDegiroStream(createReadStream('./Account.csv'));
 ```
@@ -268,7 +280,9 @@ are all exported so you can compose your own pipeline.
   deterministic, machine-independent results.
 - Rows are **newest-first** in the export; `records`/`movements` preserve that
   order, while `transactions` are sorted by booking date (newest first).
-- Only `big.js` and `csv-parse` are runtime dependencies.
+- Only `big.js` and `csv-parse` are runtime dependencies. The `libdegiro` entry
+  uses just `big.js` and `csv-parse/sync`, neither of which touches a Node
+  builtin; `csv-parse`'s stream API is reached only via `libdegiro/node`.
 
 ---
 
