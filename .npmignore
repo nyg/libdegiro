@@ -1,0 +1,9 @@
+src/
+test/
+*.config.ts
+*.config.js
+tsconfig.json
+.prettierrc.json
+.eslintcache
+coverage/
+Account.csv

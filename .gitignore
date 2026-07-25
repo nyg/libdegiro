@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Personal DEGIRO exports. Anchored to the repo root so the synthetic
+# test/fixtures/Account.csv is still tracked.
+/Account.csv
