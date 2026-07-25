@@ -14,9 +14,6 @@
     "finance",
     "typescript"
   ],
-  "engines": {
-    "node": "v26.5.0"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
