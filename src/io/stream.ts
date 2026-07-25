@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream';
-import { createCsvRowStream } from '../csv/tokenizer';
+import { createCsvRowStream } from '../csv/rowStream';
 import { mapRow, type RawRecord } from '../records/rawRecord';
 import { DegiroError, type ParseIssue } from '../errors';
 import type { Dialect } from '../dialects/types';
