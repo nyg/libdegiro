@@ -1,14 +1,20 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { dirname, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const srcDir = fileURLToPath(new URL('../src', import.meta.url));
 
 /**
- * Third-party packages the browser-safe entry is allowed to pull in. Adding one
- * here is a deliberate statement that it carries no Node builtins of its own.
+ * Third-party packages the root entry is allowed to import.
+ *
+ * This is a dependency-surface check, **not** a browser-safety check. An import
+ * graph free of Node builtins proves very little on its own: `csv-parse/sync`
+ * imports none, yet reaches for the `Buffer` global at module scope and so
+ * throws on import in a browser. Browser safety is proven by actually running
+ * the browser bundle without Node's globals — see the suite at the bottom.
  */
 const ALLOWED_DEPENDENCIES = ['big.js', 'csv-parse/sync'];
 
@@ -56,11 +62,11 @@ describe('the root entry point', () => {
     expect(files.length).toBeGreaterThan(10);
   });
 
-  it('imports no Node builtin, so it bundles for browsers and edge runtimes', () => {
+  it('imports no Node builtin', () => {
     expect([...bare].filter(isNodeBuiltin)).toEqual([]);
   });
 
-  it('depends only on packages known to be free of Node builtins', () => {
+  it('pulls in no dependency beyond the reviewed allowlist', () => {
     expect([...bare].sort()).toEqual([...ALLOWED_DEPENDENCIES].sort());
   });
 
@@ -81,5 +87,56 @@ describe('the node entry point', () => {
       'node:fs/promises',
       'node:stream',
     ]);
+  });
+});
+
+const browserBundle = resolve(srcDir, '../dist/index.browser.js');
+const fixture = resolve(srcDir, '../test/fixtures/Account.csv');
+
+/**
+ * Run a snippet in a child process with Node's `Buffer` global removed, which is
+ * the closest we get to a browser without booting one. A child process is
+ * required: deleting `Buffer` in-process breaks vitest itself.
+ */
+function runWithoutBuffer(body: string): string {
+  const script = `
+    import { readFileSync } from 'node:fs';
+    const csv = readFileSync(${JSON.stringify(fixture)}, 'utf8');
+    delete globalThis.Buffer;
+    const lib = await import(${JSON.stringify(pathToFileURL(browserBundle).href)});
+    ${body}
+  `;
+  return execFileSync(process.execPath, ['--input-type=module', '-e', script], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+describe('the browser bundle', () => {
+  it('is built by `pnpm build`', () => {
+    expect(existsSync(browserBundle)).toBe(true);
+  });
+
+  it('parses a statement with no Buffer global', () => {
+    const out = runWithoutBuffer(`
+      const result = lib.parseDegiroCsv(csv);
+      process.stdout.write(JSON.stringify({
+        movements: result.movements.length,
+        errors: result.errors.length,
+        buffer: typeof globalThis.Buffer,
+      }));
+    `);
+    expect(JSON.parse(out)).toEqual({ movements: 236, errors: 0, buffer: 'undefined' });
+  });
+
+  it('reconciles and aggregates with no Buffer global', () => {
+    const out = runWithoutBuffer(`
+      const { movements } = lib.parseDegiroCsv(csv);
+      process.stdout.write(JSON.stringify({
+        ok: lib.reconcileBalances(movements).ok,
+        fees: lib.summarizePortfolio(movements).fees.map(String),
+      }));
+    `);
+    expect(JSON.parse(out)).toEqual({ ok: true, fees: ['-40.57 CHF', '-46.23 EUR'] });
   });
 });
