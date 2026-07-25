@@ -1,3 +1,4 @@
-ignoredBuiltDependencies:
-  - esbuild
+allowBuilds:
+  # esbuild ships prebuilt platform binaries; its install script is not needed.
+  esbuild: false
 verifyDepsBeforeRun: false

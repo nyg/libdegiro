@@ -11,12 +11,7 @@ import type {
 
 /** Discriminant for every {@link Transaction}. */
 export type TransactionType =
-  | 'trade'
-  | 'fxTrade'
-  | 'fxConversion'
-  | 'cashSweep'
-  | 'single'
-  | 'composite';
+  'trade' | 'fxTrade' | 'fxConversion' | 'cashSweep' | 'single' | 'composite';
 
 /** Fields shared by every transaction. */
 export interface TransactionBase<T extends TransactionType> {
