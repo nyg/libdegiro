@@ -61,17 +61,31 @@ attached; and a parse-health panel with balance reconciliation.
 
 ```bash
 pnpm install
-pnpm dashboard:dev
+pnpm dev
 ```
 
-`dashboard:dev` and `dashboard:build` build `libdegiro` first, so a stale or
-missing `dist/` cannot break the app.
+From **this directory** (`examples/dashboard`):
 
 ```bash
-pnpm dashboard:test        # analytics unit tests
-pnpm dashboard:typecheck
-pnpm dashboard:build
+pnpm dev          # dev server
+pnpm build        # production build -> dist/
+pnpm preview      # serve the production build
+pnpm test         # analytics unit tests
+pnpm typecheck
 ```
+
+The same things are reachable from the **repo root** under a `dashboard:`
+prefix, since the root package has its own `dev`, `build` and `test`:
+
+```bash
+pnpm dashboard:dev
+pnpm dashboard:build
+pnpm dashboard:test
+pnpm dashboard:typecheck
+```
+
+`dev` and `build` build `libdegiro` first, so a stale or missing `dist/` cannot
+break the app.
 
 The app depends on `libdegiro` as a workspace package and resolves it through
 the published `exports` map — not through a source alias. That is deliberate: it
