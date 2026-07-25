@@ -45,7 +45,11 @@
     "test": "pnpm build && vitest run",
     "test:watch": "pnpm build && vitest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "dashboard:dev": "pnpm --filter @libdegiro/dashboard dev",
+    "dashboard:build": "pnpm --filter @libdegiro/dashboard build",
+    "dashboard:test": "pnpm --filter @libdegiro/dashboard test",
+    "dashboard:typecheck": "pnpm --filter @libdegiro/dashboard typecheck"
   },
   "dependencies": {
     "big.js": "7.0.1",
@@ -56,6 +60,9 @@
     "@types/big.js": "7.0.0",
     "@types/node": "26.1.1",
     "eslint": "10.7.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.7.0",
     "prettier": "3.9.6",
     "tsup": "8.5.1",
     "typescript": "6.0.3",
