@@ -14,7 +14,7 @@ to add.
 - 🪶 **Lenient parsing** — per-row problems are collected, never thrown
 - 🌊 **Streaming** parser for very large files
 - ✅ **Balance reconciliation** and **portfolio** aggregation built in
-- 🌍 **Runs anywhere** — the core entry has no Node builtins; Node I/O is opt-in
+- 🌍 **Runs in the browser** — the core entry ships a browser build; Node I/O is opt-in
 
 ---
 
@@ -28,14 +28,36 @@ ESM only.
 
 ### Entry points
 
-| Import           | Contents                                                 | Requires    |
-| ---------------- | -------------------------------------------------------- | ----------- |
-| `libdegiro`      | Parsing, classification, grouping, validation, portfolio | Any runtime |
-| `libdegiro/node` | File and stream helpers                                  | Node 18+    |
+| Import           | Contents                                                 | Requires          |
+| ---------------- | -------------------------------------------------------- | ----------------- |
+| `libdegiro`      | Parsing, classification, grouping, validation, portfolio | Node or a browser |
+| `libdegiro/node` | File and stream helpers                                  | Node 18+          |
 
-`libdegiro` imports no Node builtins, so it bundles as-is for browsers, Deno,
-workers and edge runtimes. Anything touching `node:fs` or `node:stream` lives
-behind `libdegiro/node` — import it only where you have a filesystem.
+Anything touching `node:fs` or `node:stream` lives behind `libdegiro/node` —
+import it only where you have a filesystem.
+
+`libdegiro` itself imports no Node builtins, but that alone is not enough to run
+in a browser: `csv-parse/sync` uses the `Buffer` global at module scope. So the
+package ships a second build of the same sources, `dist/index.browser.js`, which
+resolves `csv-parse` to the browser build it publishes. A `browser` export
+condition selects it automatically:
+
+```json
+".": {
+  "browser": "./dist/index.browser.js",
+  "import": "./dist/index.js"
+}
+```
+
+Vite, webpack and rollup honour that condition, so a browser bundle needs no
+configuration. Node ignores it and keeps the faster native-`Buffer` path.
+Runtimes that resolve neither condition — Deno and Cloudflare Workers among them
+— get the Node build and will need an explicit alias to
+`libdegiro/dist/index.browser.js`.
+
+The claim is tested rather than asserted: `test/entrypoints.test.ts` runs the
+browser bundle in a child process with `globalThis.Buffer` deleted and parses the
+full fixture.
 
 ---
 
@@ -280,9 +302,9 @@ are all exported so you can compose your own pipeline.
   deterministic, machine-independent results.
 - Rows are **newest-first** in the export; `records`/`movements` preserve that
   order, while `transactions` are sorted by booking date (newest first).
-- Only `big.js` and `csv-parse` are runtime dependencies. The `libdegiro` entry
-  uses just `big.js` and `csv-parse/sync`, neither of which touches a Node
-  builtin; `csv-parse`'s stream API is reached only via `libdegiro/node`.
+- Only `big.js` and `csv-parse` are runtime dependencies. `csv-parse`'s stream
+  API is reached only via `libdegiro/node`; the browser build swaps its sync
+  parser for the `csv-parse/browser/esm/sync` variant.
 
 ---
 
