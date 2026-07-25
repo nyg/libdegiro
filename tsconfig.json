@@ -24,9 +24,11 @@
     "outDir": "dist",
     "skipLibCheck": true,
 
-    // tsup's .d.ts build passes `baseUrl` unconditionally (rollup dts plugin:
-    // `baseUrl: compilerOptions.baseUrl || "."`), which TypeScript 6 rejects as
-    // deprecated. Drop this once tsup stops setting it.
+    // `tsc` is TypeScript 7, but tsup's .d.ts step runs against the TypeScript 6
+    // API (see the `typescript` alias in package.json) and passes `baseUrl`
+    // unconditionally: `baseUrl: compilerOptions.baseUrl || "."` in its bundled
+    // rollup dts plugin. TS 6 rejects that as deprecated, failing the dts build.
+    // Drop this once tsup stops setting it.
     "ignoreDeprecations": "6.0"
   },
   "include": ["src", "test", "*.ts"]
