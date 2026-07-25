@@ -296,6 +296,23 @@ are all exported so you can compose your own pipeline.
 
 ---
 
+## Example: a browser dashboard
+
+[`examples/dashboard`](examples/dashboard) is a single-page app that turns an
+`Account.csv` into a dashboard of fees, cash, positions and income — running
+entirely in the browser, with a content security policy that blocks all network
+access. It is live at **https://nyg.github.io/libdegiro/**.
+
+```sh
+pnpm dashboard:dev
+```
+
+It consumes `libdegiro` as a workspace dependency through the published
+`exports` map, so it exercises the `browser` condition the way a real consumer
+would.
+
+---
+
 ## Notes & caveats
 
 - The statement carries no timezone; times are parsed as **UTC** wall-clock for
