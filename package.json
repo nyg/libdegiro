@@ -20,6 +20,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "browser": "./dist/index.browser.js",
       "import": "./dist/index.js"
     },
     "./node": {
@@ -37,11 +38,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "pnpm build && vitest run",
+    "test:watch": "pnpm build && vitest",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
