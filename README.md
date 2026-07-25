@@ -296,6 +296,25 @@ pnpm lint         # eslint
 pnpm build        # tsup -> dist/ (ESM + .d.ts + sourcemaps)
 ```
 
+### TypeScript 6 and 7 side by side
+
+TypeScript 7 is the native compiler and ships no JavaScript API, so tools that
+need one — typescript-eslint and tsup's `.d.ts` step — cannot run on it. The
+package.json aliases in `devDependencies` give us both:
+
+| Specifier            | Resolves to               | Used by                                                |
+| -------------------- | ------------------------- | ------------------------------------------------------ |
+| `@typescript/native` | real `typescript@7`       | the `tsc` binary, i.e. `pnpm typecheck`                |
+| `typescript`         | `@typescript/typescript6` | anything importing the TS API: typescript-eslint, tsup |
+
+So `pnpm typecheck` runs TypeScript 7, while linting and the emitted `.d.ts`
+files are still produced by the TypeScript 6 API. `tsc6` is available if you
+need to compare the two compilers. Editors set to the workspace TypeScript
+version will use the 6.0 language service.
+
+Collapse this back to a plain `typescript` dependency once
+[typescript-eslint supports TS 7](https://github.com/typescript-eslint/typescript-eslint/issues/10940).
+
 ### Test fixture
 
 `test/fixtures/Account.csv` is a **synthetic** statement, not a real export. It
