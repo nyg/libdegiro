@@ -12,6 +12,7 @@ import { buildHealthReport, type HealthReport } from './health';
 
 export * from './exchange';
 export * from './fees';
+export * from './summary';
 export * from './explain';
 export * from './income';
 export * from './timeseries';
