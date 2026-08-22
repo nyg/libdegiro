@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2, Copy, TriangleAlert } from 'lucide-react';
-import { diagnosticsText } from '@/lib/analytics';
+import { describeHealthProblems, diagnosticsText } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { MoneyList } from '@/components/money-list';
 export function HealthSection() {
   const { health, result } = useAnalytics();
   const [copied, setCopied] = useState(false);
+  const problems = describeHealthProblems(health);
 
   const copyDiagnostics = async () => {
     // The clipboard is not a network destination, so this is CSP-safe and does
@@ -38,12 +39,21 @@ export function HealthSection() {
         <AlertTitle>
           {health.ok
             ? 'Every row was understood and the balances reconcile'
-            : 'Some rows need attention'}
+            : `${problems.length} ${problems.length === 1 ? 'thing needs' : 'things need'} attention`}
         </AlertTitle>
-        <AlertDescription>
-          Parsed {health.rows} rows using the {result.dialect.id} dialect. {health.errors.length}{' '}
-          errors, {health.warnings.length} warnings, {health.unknown.length} unrecognised
-          descriptions.
+        <AlertDescription className="flex flex-col gap-2">
+          <span>
+            Parsed {health.rows} rows using the {result.dialect.id} dialect. {health.errors.length}{' '}
+            errors, {health.warnings.length} warnings, {health.unknown.length} unrecognised
+            descriptions.
+          </span>
+          {problems.length > 0 ? (
+            <ul className="list-disc space-y-1 pl-4">
+              {problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          ) : null}
         </AlertDescription>
       </Alert>
 
@@ -86,6 +96,56 @@ export function HealthSection() {
           </Table>
         </CardContent>
       </Card>
+
+      {health.reconciliation.discrepancies.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Balance discrepancies</CardTitle>
+            <CardDescription>
+              Rows where the replayed balance and the statement&rsquo;s own balance column disagree.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24 text-right">Line</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Expected</TableHead>
+                    <TableHead className="text-right">Reported</TableHead>
+                    <TableHead className="text-right">Difference</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {health.reconciliation.discrepancies.map((entry, index) => (
+                    <TableRow key={`${entry.currency}-${entry.line ?? index}`}>
+                      <TableCell className="tabular text-right">{entry.line ?? '—'}</TableCell>
+                      <TableCell className="max-w-xs truncate font-mono text-xs">
+                        {entry.description}
+                      </TableCell>
+                      <TableCell>
+                        <MoneyList amounts={[entry.expected]} size="sm" className="items-end" />
+                      </TableCell>
+                      <TableCell>
+                        <MoneyList amounts={[entry.actual]} size="sm" className="items-end" />
+                      </TableCell>
+                      <TableCell>
+                        <MoneyList
+                          amounts={[entry.difference]}
+                          size="sm"
+                          signed
+                          className="items-end"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {health.unknownDescriptions.length > 0 ? (
         <Card>

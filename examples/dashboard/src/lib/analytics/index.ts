@@ -9,6 +9,7 @@ import {
 } from './income';
 import { balanceCurrencies, statementRange, type DateRange } from './timeseries';
 import { buildHealthReport, type HealthReport } from './health';
+import { buildPositionRows, type PositionRows } from './positions';
 
 export * from './exchange';
 export * from './fees';
@@ -17,6 +18,7 @@ export * from './explain';
 export * from './income';
 export * from './timeseries';
 export * from './health';
+export * from './positions';
 
 /**
  * Everything the dashboard derives from one parsed statement.
@@ -29,6 +31,7 @@ export * from './health';
 export interface Analytics {
   readonly result: ParseResult;
   readonly portfolio: PortfolioSummary;
+  readonly positions: PositionRows;
   readonly fees: FeeCollection;
   readonly feeTotals: FeeTotals;
   readonly feeContexts: readonly FeeContext[];
@@ -46,9 +49,12 @@ export function buildAnalytics(result: ParseResult): Analytics {
     (entry) => entry.category === 'connectivity' && entry.exchange === null,
   ).length;
 
+  const portfolio = summarizePortfolio(result.movements);
+
   return {
     result,
-    portfolio: summarizePortfolio(result.movements),
+    portfolio,
+    positions: buildPositionRows(portfolio, fees.entries),
     fees,
     feeTotals: totalFees(fees.entries),
     feeContexts: explainFees(result),

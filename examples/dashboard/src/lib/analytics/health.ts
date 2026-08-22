@@ -57,6 +57,43 @@ export function buildHealthReport(result: ParseResult, unparseableExchanges: num
   };
 }
 
+const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+/**
+ * Why `ok` is false, in the user's terms.
+ *
+ * `ok` folds together four independent checks, and the counts the panel shows
+ * only mention two of them — so a statement that reconciles badly, or whose
+ * connectivity fees name an unparseable venue, reads as "0 errors, 0 warnings"
+ * next to a warning banner. This is the missing half of that sentence.
+ */
+export function describeHealthProblems(report: HealthReport): string[] {
+  const problems: string[] = [];
+
+  if (report.errors.length > 0) {
+    problems.push(`${plural(report.errors.length, 'row')} failed to parse.`);
+  }
+  if (report.unknown.length > 0) {
+    problems.push(
+      `${plural(report.unknown.length, 'row')} carry a description no classifier recognises — see the table below.`,
+    );
+  }
+  if (!report.reconciliation.ok) {
+    const count = report.reconciliation.discrepancies.length;
+    problems.push(
+      `${plural(count, 'balance transition')} ${count === 1 ? 'does' : 'do'} not match the balance the statement itself reports — see the table below.`,
+    );
+  }
+  if (report.unparseableExchanges > 0) {
+    const one = report.unparseableExchanges === 1;
+    problems.push(
+      `${plural(report.unparseableExchanges, 'exchange connectivity fee')} name a venue this dashboard could not parse, so ${one ? 'it is' : 'they are'} missing from the per-exchange breakdown under Fees. Fee totals are unaffected.`,
+    );
+  }
+
+  return problems;
+}
+
 /**
  * A diagnostics blob a user can paste into a bug report for the library.
  *

@@ -17,12 +17,12 @@ import { ActivitySection } from '@/components/sections/activity';
 import { HealthSection } from '@/components/sections/health';
 
 const TABS = [
-  { value: 'fees', label: 'Fees', Component: FeesSection },
   { value: 'overview', label: 'Overview', Component: OverviewSection },
-  { value: 'cash', label: 'Cash', Component: CashSection },
   { value: 'positions', label: 'Positions', Component: PositionsSection },
+  { value: 'cash', label: 'Cash', Component: CashSection },
   { value: 'income', label: 'Income', Component: IncomeSection },
   { value: 'activity', label: 'Activity', Component: ActivitySection },
+  { value: 'fees', label: 'Fees', Component: FeesSection },
   { value: 'health', label: 'Parse health', Component: HealthSection },
 ] as const;
 
@@ -92,8 +92,8 @@ export function AppShell() {
         {restoring || state.status === 'parsing' ? (
           <LoadingState />
         ) : state.status === 'ready' ? (
-          <Tabs defaultValue="fees" className="gap-6">
-            <div className="overflow-x-auto">
+          <Tabs defaultValue="overview" className="gap-6">
+            <div className="overflow-x-auto overflow-y-hidden">
               <TabsList>
                 {TABS.map((tab) => (
                   <TabsTrigger key={tab.value} value={tab.value}>

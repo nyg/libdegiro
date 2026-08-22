@@ -1,7 +1,5 @@
 import { useAnalytics } from '@/state/statement-context';
 import { StatCard } from '@/components/stat-card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 import { formatDate } from '@/lib/format';
 
 export function OverviewSection() {
@@ -10,19 +8,11 @@ export function OverviewSection() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Alert>
-        <Info className="size-4" aria-hidden />
-        <AlertDescription>
-          An account statement records cash movements, not market prices — so this dashboard can
-          show what you paid and received, but never what your holdings are worth today. There is no
-          unrealised profit or loss anywhere in it.
-        </AlertDescription>
-      </Alert>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Cash balance"
           amounts={portfolio.cashByCurrency}
+          hideZero
           hint="Latest per currency"
         />
         <StatCard title="Deposited" amounts={portfolio.deposits} hint="External transfers in" />
@@ -39,10 +29,16 @@ export function OverviewSection() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Interest" amounts={portfolio.interest} hint="Credited by flatexDEGIRO" />
+        <StatCard
+          title="Interest"
+          amounts={portfolio.interest}
+          hideZero
+          hint="Credited by flatexDEGIRO"
+        />
         <StatCard
           title="Withholding tax"
           amounts={portfolio.dividendTax}
+          hideZero
           hint="Deducted at source"
         />
         <StatCard

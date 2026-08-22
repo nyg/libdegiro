@@ -17,6 +17,7 @@ export function StatCard({
   footer,
   className,
   signed = false,
+  hideZero = false,
 }: {
   title: string;
   amounts?: readonly Money[];
@@ -25,6 +26,7 @@ export function StatCard({
   footer?: ReactNode;
   className?: string;
   signed?: boolean;
+  hideZero?: boolean;
 }) {
   return (
     <Card className={cn('gap-3', className)}>
@@ -35,7 +37,7 @@ export function StatCard({
         {value !== undefined ? (
           <span className="tabular text-2xl font-semibold tracking-tight">{value}</span>
         ) : (
-          <MoneyList amounts={amounts ?? []} size="lg" signed={signed} />
+          <MoneyList amounts={amounts ?? []} size="lg" signed={signed} hideZero={hideZero} />
         )}
         {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
         {footer}

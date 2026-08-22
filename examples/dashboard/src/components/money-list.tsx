@@ -32,7 +32,18 @@ export function MoneyList({
   const visible = hideZero ? amounts.filter((money) => !money.isZero()) : amounts;
 
   if (visible.length === 0) {
-    return <span className={cn('text-muted-foreground tabular', className)}>{emptyLabel}</span>;
+    return (
+      <div className={cn('text-muted-foreground tabular flex flex-col gap-0.5', className)}>
+        <span
+          className={cn(
+            size === 'lg' && 'text-2xl font-semibold tracking-tight',
+            size === 'sm' && 'text-sm',
+          )}
+        >
+          {emptyLabel}
+        </span>
+      </div>
+    );
   }
 
   return (
