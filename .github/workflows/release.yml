@@ -124,7 +124,6 @@ jobs:
       - name: Create GitHub release
         run: |
           gh release create "v${{ env.RELEASE_VERSION }}" \
-            --title "Release v${{ env.RELEASE_VERSION }}" \
             --verify-tag \
             -F RELEASE_NOTES.md
         env:
