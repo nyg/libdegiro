@@ -5,6 +5,15 @@
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
+  "author": "nyg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nyg/libdegiro.git"
+  },
+  "homepage": "https://github.com/nyg/libdegiro#readme",
+  "bugs": {
+    "url": "https://github.com/nyg/libdegiro/issues"
+  },
   "keywords": [
     "degiro",
     "broker",
@@ -43,6 +52,7 @@
     "test:watch": "pnpm build && vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "prepublishOnly": "pnpm test",
     "dashboard:dev": "pnpm --filter @libdegiro/dashboard dev",
     "dashboard:build": "pnpm --filter @libdegiro/dashboard build",
     "dashboard:test": "pnpm --filter @libdegiro/dashboard test",
