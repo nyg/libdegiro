@@ -5,6 +5,7 @@ import {
   tokenizeCsv,
   mapRow,
   frenchDialect,
+  englishDialect,
   defaultClassifier,
   createDefaultClassifierRegistry,
   type Matcher,
@@ -155,6 +156,92 @@ describe('individual matchers', () => {
 
   it('falls back to unknown for unrecognised descriptions', () => {
     expect(classify(record('Some brand new DEGIRO movement')).kind).toBe('unknown');
+  });
+});
+
+describe('English descriptions', () => {
+  const classify = (rec: RawRecord) => defaultClassifier.classify(rec, englishDialect);
+
+  it('parses a security buy and sell', () => {
+    const buy = classify(
+      record('Buy 1,060 SMI ETF@106.02 CHF (CH0019852802)', { isin: 'CH0019852802' }),
+    );
+    expect(buy.kind).toBe('buy');
+    if (buy.kind === 'buy') {
+      expect(buy.quantity).toBe(1060);
+      expect(buy.unitPrice?.toString()).toBe('106.02 CHF');
+    }
+    expect(classify(record('Sell 10 VWCE@120.36 EUR (IE00BK5BQT80)')).kind).toBe('sell');
+  });
+
+  it('parses FX pair trades and their settlement leg', () => {
+    const fx = classify(record('Buy 4,800 EUR/CHF@0.9412 CHF ()'));
+    expect(fx.kind).toBe('fxTrade');
+    if (fx.kind === 'fxTrade') {
+      expect(fx.pair).toBe('EUR/CHF');
+      expect(fx.quantity).toBe(4800);
+      expect(fx.settlement).toBe(false);
+    }
+    const settled = classify(
+      record('Currency transaction settlement: Sell 4,800 EUR/CHF@0.9412 CHF ()'),
+    );
+    if (settled.kind === 'fxTrade') expect(settled.settlement).toBe(true);
+  });
+
+  it('distinguishes FX credit and debit legs in both spellings', () => {
+    expect(classify(record('Currency Exchange - Credit')).kind).toBe('fxCredit');
+    expect(classify(record('Currency Exchange (Debit)')).kind).toBe('fxDebit');
+    expect(classify(record('FX Credit')).kind).toBe('fxCredit');
+    expect(classify(record('FX Debit')).kind).toBe('fxDebit');
+  });
+
+  it('classifies dividend, dividend tax and capital return', () => {
+    expect(classify(record('Dividend')).kind).toBe('dividend');
+    expect(classify(record('Dividend Tax')).kind).toBe('dividendTax');
+    expect(classify(record('Return of Capital')).kind).toBe('capitalReturn');
+    expect(classify(record('Capital Return')).kind).toBe('capitalReturn');
+  });
+
+  it('classifies fees and extracts the connectivity year', () => {
+    expect(classify(record('DEGIRO Transaction and/or Third Party Fees')).kind).toBe(
+      'brokerageFee',
+    );
+    const conn = classify(record('DEGIRO Exchange Connection Fee 2024 (Euronext Amsterdam - EAM)'));
+    expect(conn.kind).toBe('connectivityFee');
+    if (conn.kind === 'connectivityFee') expect(conn.year).toBe(2024);
+    expect(classify(record('DEGIRO Exchange Connectivity Fee 2024')).kind).toBe('connectivityFee');
+  });
+
+  it('classifies cash transfers with direction and stated amount', () => {
+    const out = classify(record('Transfer to your Cash Account at flatex Bank: 6,770.10 CHF'));
+    expect(out.kind).toBe('cashTransfer');
+    if (out.kind === 'cashTransfer') {
+      expect(out.direction).toBe('toCashAccount');
+      expect(out.statedAmount?.toString()).toBe('6770.1 CHF');
+    }
+    const incoming = classify(record('Transfer from your Cash Account at flatex Bank: 213.25 EUR'));
+    if (incoming.kind === 'cashTransfer') expect(incoming.direction).toBe('fromCashAccount');
+  });
+
+  it('prefers a cash transfer over a deposit when the row names the cash account', () => {
+    expect(classify(record('Deposit to your Cash Account at flatex Bank: 213.25 EUR')).kind).toBe(
+      'cashTransfer',
+    );
+    expect(
+      classify(record('Withdrawal from your Cash Account at flatex Bank: 213.25 EUR')).kind,
+    ).toBe('cashTransfer');
+  });
+
+  it('classifies deposits and withdrawals, however they are qualified', () => {
+    expect(classify(record('Deposit')).kind).toBe('deposit');
+    expect(classify(record('flatex Deposit')).kind).toBe('deposit');
+    expect(classify(record('Withdrawal')).kind).toBe('withdrawal');
+    expect(classify(record('Processed Flatex Withdrawal')).kind).toBe('withdrawal');
+  });
+
+  it('does not mistake a French export read through the English dialect', () => {
+    expect(classify(record('Versement de fonds')).kind).toBe('deposit');
+    expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep');
   });
 });
 

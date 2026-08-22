@@ -1,19 +1,23 @@
 import type { Dialect } from '../dialects/types';
 import { Money } from '../money/money';
 
-/** Leading quantity (digits with space thousands separators) then the remainder. */
-const LEADING_QTY = /^([0-9][0-9\u00a0\u202f ]*)(.*)$/;
+/** Leading quantity (digits with grouped thousands) then the remainder. */
+const LEADING_QTY = /^([0-9][0-9\u00a0\u202f]*(?:[ .,\u00a0\u202f][0-9]{3})*)(?:\s+(.*))?$/;
+const QTY_GROUPING = /[ .,\u00a0\u202f]/g;
 /** `<price> <CCY> (<isin?>)` tail of a trade description. */
 const PRICE_TAIL = /^(.+?)\s+([A-Za-z]{3})\s+\(([^)]*)\)\s*$/;
-/** `Achat|Vente <rest>@<priceTail>` */
-const TRADE = /^(Achat|Vente)\s+(.+?)@(.+)$/;
+/** `Achat|Vente|Buy|Sell <rest>@<priceTail>` */
+const TRADE = /^(Achat|Vente|Buy|Sell)\s+(.+?)@(.+)$/i;
+const BUY_SIDE = /^(achat|buy)$/i;
 /** Settlement prefix on FX trade rows. */
-const FX_SETTLEMENT_PREFIX = /^R[èe]glement transaction devise:\s*/i;
+const FX_SETTLEMENT_PREFIX =
+  /^(?:R[èe]glement transaction devise|(?:Currency|FX)\s+(?:transaction\s+)?settlement)\s*:\s*/i;
 /** Currency pair such as `EUR/CHF`. */
 const FX_PAIR = /^[A-Za-z]{3}\/[A-Za-z]{3}$/;
-/** `Virement vers|depuis ... : <amount> <CCY>` */
+/** `Virement|Transfer|Deposit|Withdrawal vers|depuis|to|from ... : <amount> <CCY>` */
 const CASH_TRANSFER =
-  /^Virement\s+(vers|depuis)\b.*:\s*([0-9][0-9\u00a0\u202f .,]*?)\s+([A-Za-z]{3})\s*$/i;
+  /^(?:Virement|Transfer|Deposit|Withdrawal)\s+(vers|depuis|to|from)\b.*:\s*([0-9][0-9\u00a0\u202f .,]*?)\s+([A-Za-z]{3})\s*$/i;
+const TO_CASH_ACCOUNT = /^(vers|to)$/i;
 
 /** Parse a localized integer quantity (with space thousands separators). */
 export function parseQuantity(raw: string, dialect: Dialect): number | null {
@@ -41,12 +45,14 @@ export function parseTradeDescription(description: string, dialect: Dialect): Pa
   const trade = TRADE.exec(description.trim());
   if (!trade) return null;
 
-  const side = trade[1] === 'Achat' ? 'buy' : 'sell';
+  const side = BUY_SIDE.test(trade[1] ?? '') ? 'buy' : 'sell';
   const qtyAndProduct = trade[2] ?? '';
   const priceTail = trade[3] ?? '';
 
   const qtyMatch = LEADING_QTY.exec(qtyAndProduct);
-  const quantity = qtyMatch ? parseQuantity(qtyMatch[1] ?? '', dialect) : null;
+  const quantity = qtyMatch
+    ? parseQuantity((qtyMatch[1] ?? '').replace(QTY_GROUPING, ''), dialect)
+    : null;
   const product = qtyMatch ? (qtyMatch[2] ?? '').trim() || null : qtyAndProduct.trim() || null;
 
   const priceMatch = PRICE_TAIL.exec(priceTail);
@@ -119,7 +125,7 @@ export function parseCashTransferDescription(
   const match = CASH_TRANSFER.exec(description.trim());
   if (!match) return null;
 
-  const direction = (match[1] ?? '').toLowerCase() === 'vers' ? 'toCashAccount' : 'fromCashAccount';
+  const direction = TO_CASH_ACCOUNT.test(match[1] ?? '') ? 'toCashAccount' : 'fromCashAccount';
   const decimal = dialect.parseDecimal(match[2] ?? '');
   const currency = match[3] ?? '';
   const amount = decimal !== null && currency !== '' ? new Money(decimal, currency) : null;

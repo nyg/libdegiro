@@ -80,10 +80,10 @@ export const defaultMatchers: readonly Matcher[] = [
   brokerageFeeMatcher,
   connectivityFeeMatcher,
   interestMatcher,
-  depositMatcher,
-  withdrawalMatcher,
   cashSweepMatcher,
   cashTransferMatcher,
+  depositMatcher,
+  withdrawalMatcher,
 ];
 
 /** Create a registry pre-populated with all built-in matchers. */

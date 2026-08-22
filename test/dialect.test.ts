@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   frenchDialect,
+  englishDialect,
   parseFrenchDecimal,
+  parseEnglishDecimal,
   parseFrenchDateTime,
   DialectRegistry,
   createDefaultDialectRegistry,
@@ -44,6 +46,45 @@ describe('parseFrenchDecimal', () => {
   });
 });
 
+const englishHeader = [
+  'Date',
+  'Time',
+  'Value date',
+  'Product',
+  'ISIN',
+  'Description',
+  'FX',
+  'Change',
+  '',
+  'Balance',
+  '',
+  'Order Id',
+];
+
+describe('parseEnglishDecimal', () => {
+  it('reads US thousands separators with a dot decimal mark', () => {
+    expect(parseEnglishDecimal('-1,060.20')).toBe('-1060.20');
+    expect(parseEnglishDecimal('9,000.00')).toBe('9000.00');
+    expect(parseEnglishDecimal('0.9412')).toBe('0.9412');
+  });
+
+  it('reads the European format DEGIRO keeps in English exports', () => {
+    expect(parseEnglishDecimal('14\u202f980,01')).toBe('14980.01');
+    expect(parseEnglishDecimal('-2145,60')).toBe('-2145.60');
+    expect(parseEnglishDecimal('1.060,20')).toBe('1060.20');
+  });
+
+  it('treats a repeated separator as grouping', () => {
+    expect(parseEnglishDecimal('1,060,200')).toBe('1060200');
+  });
+
+  it('returns null for empty or invalid input', () => {
+    expect(parseEnglishDecimal('')).toBeNull();
+    expect(parseEnglishDecimal('n/a')).toBeNull();
+    expect(parseEnglishDecimal('1.060.20')).toBeNull();
+  });
+});
+
 describe('parseFrenchDateTime', () => {
   it('parses DD-MM-YYYY with HH:MM as UTC', () => {
     const d = parseFrenchDateTime('01-02-2025', '12:21');
@@ -70,10 +111,35 @@ describe('frenchDialect', () => {
   });
 });
 
+describe('englishDialect', () => {
+  it('matches the English header', () => {
+    expect(englishDialect.matches(englishHeader)).toBe(true);
+  });
+
+  it('does not match a French header', () => {
+    expect(englishDialect.matches(frenchHeader)).toBe(false);
+  });
+
+  it('shares the positional layout with the French dialect', () => {
+    expect(englishDialect.columns).toEqual(frenchDialect.columns);
+  });
+
+  it('reads DD-MM-YYYY dates as UTC', () => {
+    expect(englishDialect.parseDateTime('01-02-2025', '12:21')?.toISOString()).toBe(
+      '2025-02-01T12:21:00.000Z',
+    );
+  });
+});
+
 describe('DialectRegistry', () => {
   it('detects the French dialect from the default registry', () => {
     const registry = createDefaultDialectRegistry();
     expect(registry.detect(frenchHeader).id).toBe('fr');
+  });
+
+  it('detects the English dialect from the default registry', () => {
+    const registry = createDefaultDialectRegistry();
+    expect(registry.detect(englishHeader).id).toBe('en');
   });
 
   it('throws UnknownDialectError when nothing matches', () => {
@@ -90,6 +156,6 @@ describe('DialectRegistry', () => {
     };
     const registry = createDefaultDialectRegistry().register(custom, { prepend: true });
     expect(registry.detect(frenchHeader).id).toBe('custom');
-    expect(registry.all().map((d) => d.id)).toEqual(['custom', 'fr']);
+    expect(registry.all().map((d) => d.id)).toEqual(['custom', 'fr', 'en']);
   });
 });

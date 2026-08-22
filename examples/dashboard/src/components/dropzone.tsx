@@ -1,9 +1,13 @@
-import { useCallback, useRef, useState, type DragEvent } from 'react';
-import { FileUp, ShieldCheck } from 'lucide-react';
+import { useCallback, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { Download, FileUp, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SAMPLE_FILE_NAME, sampleCsv } from '@/lib/sample';
 import { useStatement } from '@/state/statement-context';
+
+function Ui({ children }: { children: ReactNode }) {
+  return <span className="text-foreground font-medium">{children}</span>;
+}
 
 export function Dropzone() {
   const { load, state } = useStatement();
@@ -53,7 +57,7 @@ export function Dropzone() {
         <div className="space-y-1">
           <p className="font-medium">Drop your DEGIRO Account.csv here</p>
           <p className="text-muted-foreground text-sm">
-            Export it from DEGIRO under Inbox → Account statement.
+            English and French statements are both recognised.
           </p>
         </div>
 
@@ -82,6 +86,39 @@ export function Dropzone() {
           </p>
         ) : null}
       </div>
+
+      <section className="text-muted-foreground w-full space-y-3 text-sm">
+        <h2 className="text-foreground flex items-center gap-2 font-medium">
+          <Download className="size-4 shrink-0" aria-hidden />
+          Exporting Account.csv from DEGIRO
+        </h2>
+        <ol className="list-decimal space-y-2 pl-5">
+          <li>
+            Sign in to <Ui>degiro.com</Ui> in a browser. The statement export lives in the web
+            client.
+          </li>
+          <li>
+            Open <Ui>Inbox</Ui>, then the <Ui>Account statement</Ui> tab.
+          </li>
+          <li>
+            Set <Ui>Start date</Ui> to the day you opened the account, or anything earlier, and{' '}
+            <Ui>End date</Ui> to today. Every number here is computed from the rows in the file, so
+            a narrower range silently gives you partial positions, fees and realized P/L.
+          </li>
+          <li>
+            Leave <Ui>Curr.</Ui> on <Ui>All</Ui> and the product search empty, so no currency or
+            instrument is filtered out.
+          </li>
+          <li>
+            <Ui>Hide cash movements</Ui> only changes the table on screen. The export contains every
+            row either way, and this dashboard needs those rows to reconcile your balances.
+          </li>
+          <li>
+            Click the download button at the top right of the table and choose <Ui>CSV</Ui>. Drop
+            the file it saves — <Ui>Account.csv</Ui> — above.
+          </li>
+        </ol>
+      </section>
 
       <p className="text-muted-foreground flex items-center gap-2 text-xs">
         <ShieldCheck className="size-4 shrink-0" aria-hidden />

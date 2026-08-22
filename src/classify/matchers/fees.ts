@@ -1,8 +1,9 @@
 import type { Matcher } from '../types';
 import { extractYear } from '../descriptions';
 
-const BROKERAGE = /^frais degiro de courtage/i;
-const CONNECTIVITY = /^frais de connexion aux places boursi[èe]res/i;
+const BROKERAGE = /^(?:frais degiro de courtage|degiro transaction)/i;
+const CONNECTIVITY =
+  /^(?:frais de connexion aux places boursi[èe]res|degiro exchange connect(?:ion|ivity) fee)/i;
 
 /** Matches a brokerage / third-party transaction fee. */
 export const brokerageFeeMatcher: Matcher = {
