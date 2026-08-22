@@ -351,7 +351,7 @@ pnpm install
 pnpm test         # vitest
 pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint
-pnpm build        # tsup -> dist/ (ESM + .d.ts + sourcemaps)
+pnpm build        # tsdown -> dist/ (ESM + .d.ts + sourcemaps)
 ```
 
 ### Test fixture

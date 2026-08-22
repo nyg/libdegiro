@@ -46,8 +46,8 @@
   ],
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "pnpm clean && tsup",
-    "dev": "tsup --watch",
+    "build": "pnpm clean && tsdown",
+    "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && vitest run",
     "test:watch": "pnpm build && vitest",
@@ -72,7 +72,7 @@
     "eslint-plugin-react-refresh": "0.5.4",
     "globals": "17.11.0",
     "prettier": "3.9.6",
-    "tsup": "8.5.1",
+    "tsdown": "0.22.14",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
     "vitest": "4.1.11"

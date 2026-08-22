@@ -10,7 +10,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
-      - 'tsup.config.ts'
+      - 'tsdown.config.ts'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
