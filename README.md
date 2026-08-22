@@ -216,6 +216,8 @@ summary.cashByCurrency; // latest trading balance per currency
 summary.dividends; // totals per currency
 summary.fees; // brokerage + connectivity totals
 summary.realizedPnl; // FIFO realized P/L per ISIN
+summary.openCost; // cost basis of the shares still held, per ISIN
+summary.invested; // the same, totalled per currency
 summary.deposits; // money in from outside the account
 summary.withdrawals; // money out to outside it, kept negative
 summary.netExternalFlow; // deposits + withdrawals
@@ -223,7 +225,9 @@ summary.netExternalFlow; // deposits + withdrawals
 
 Deposits and withdrawals are split by the **sign** of the mutation, not by the description: DEGIRO books a withdrawal as a negative `Versement de fonds` at least as often as it names it `Retrait de fonds`. Internal sweeps to the flatexDEGIRO cash account are excluded — they move money between two accounts you own.
 
-Individual helpers (`computePositions`, `computeRealizedPnl`, `cashByCurrency`, `externalFlows`, `sumByCurrency`) are exported too.
+Individual helpers (`computePositions`, `computeRealizedPnl`, `computeOpenCost`, `cashByCurrency`, `externalFlows`, `sumByCurrency`) are exported too.
+
+`openCost` is what the unsold lots were bought for, not a valuation — no statement carries a current price. It is `null` under the same conditions as realized P/L.
 
 > **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is multi-currency, incomplete within the statement window, or missing a price — rather than guessing.
 

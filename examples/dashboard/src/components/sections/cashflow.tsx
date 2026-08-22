@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,43 +28,6 @@ import { MoneyList } from '@/components/money-list';
 import { StatCard } from '@/components/stat-card';
 import { formatAxisNumber, formatDate, formatDecimal, toChartNumber } from '@/lib/format';
 
-const BAR_WIDTH = 12;
-
-/**
- * A fixed-width bar, centred on the position Recharts computed.
- *
- * On a numeric time axis there are no bands, so Recharts derives bar width from
- * the smallest gap between two points — and deposits arrive in bursts days
- * apart inside a two-year span, which works out at under three pixels. `barSize`
- * does not help: it is clamped to that same figure. Only the geometry is
- * overridden here; x, y and height stay exactly as the chart placed them, so
- * the bar still sits on its real date.
- */
-function FixedBar({
-  x = 0,
-  y = 0,
-  width = 0,
-  height = 0,
-  fill,
-}: {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fill?: string;
-}) {
-  return (
-    <rect
-      x={x + width / 2 - BAR_WIDTH / 2}
-      y={y}
-      width={BAR_WIDTH}
-      height={height}
-      rx={2}
-      fill={fill}
-    />
-  );
-}
-
 export function CashFlowSection() {
   const { cashFlow } = useAnalytics();
   const [currency, setCurrency] = useState(() => cashFlow.currencies[0] ?? '');
@@ -77,7 +40,6 @@ export function CashFlowSection() {
     () =>
       (selected?.events ?? []).map((event) => ({
         t: event.date.getTime(),
-        amount: toChartNumber(event.amount),
         cumulative: toChartNumber(event.cumulative),
       })),
     [selected],
@@ -86,7 +48,6 @@ export function CashFlowSection() {
   const config = useMemo(
     () =>
       ({
-        amount: { label: `This transfer (${active})`, color: 'var(--chart-3)' },
         cumulative: { label: `Running total (${active})`, color: 'var(--chart-1)' },
       }) satisfies ChartConfig,
     [active],
@@ -129,15 +90,7 @@ export function CashFlowSection() {
 
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1.5">
-            <CardTitle className="text-base">Money in and out over time</CardTitle>
-            <CardDescription>
-              Bars are single transfers, read against the left axis; the step line is the running
-              total, read against the right. Only transfers across the account boundary count —
-              sweeps to and from the flatexDEGIRO cash account move money between two accounts you
-              own and are excluded.
-            </CardDescription>
-          </div>
+          <CardTitle className="text-base">Money in and out over time</CardTitle>
           {cashFlow.currencies.length > 1 ? (
             <Select value={active} onValueChange={setCurrency}>
               <SelectTrigger className="w-32 shrink-0">
@@ -155,7 +108,7 @@ export function CashFlowSection() {
         </CardHeader>
         <CardContent>
           <ChartContainer config={config} className="h-[340px] w-full">
-            <ComposedChart accessibilityLayer data={data} margin={{ left: 4, right: 4 }}>
+            <LineChart accessibilityLayer data={data} margin={{ left: 4, right: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis
                 dataKey="t"
@@ -170,15 +123,6 @@ export function CashFlowSection() {
                 tickFormatter={(value: number) => formatDate(new Date(value))}
               />
               <YAxis
-                yAxisId="transfer"
-                tickLine={false}
-                axisLine={false}
-                width={64}
-                tickFormatter={formatAxisNumber}
-              />
-              <YAxis
-                yAxisId="running"
-                orientation="right"
                 tickLine={false}
                 axisLine={false}
                 width={64}
@@ -199,9 +143,7 @@ export function CashFlowSection() {
                   />
                 }
               />
-              <Bar yAxisId="transfer" dataKey="amount" fill="var(--color-amount)" shape={<FixedBar />} />
               <Line
-                yAxisId="running"
                 dataKey="cumulative"
                 type="stepAfter"
                 stroke="var(--color-cumulative)"
@@ -209,7 +151,7 @@ export function CashFlowSection() {
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}
               />
-            </ComposedChart>
+            </LineChart>
           </ChartContainer>
         </CardContent>
       </Card>
@@ -217,9 +159,6 @@ export function CashFlowSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Every transfer</CardTitle>
-          <CardDescription>
-            Newest first, across every currency. The running total is per currency.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

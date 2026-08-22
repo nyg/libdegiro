@@ -1,15 +1,6 @@
 import { sumByCurrency, type Money, type PortfolioSummary } from 'libdegiro';
 import type { FeeEntry } from './fees';
 
-/** One currency's worth of fees on an instrument, and when they were charged. */
-export interface FeePeriod {
-  readonly currency: string;
-  readonly total: Money;
-  readonly count: number;
-  readonly from: Date;
-  readonly to: Date;
-}
-
 export interface PositionRow {
   readonly isin: string;
   readonly product: string | null;
@@ -23,12 +14,6 @@ export interface PositionRow {
   readonly gross: Money | null;
   /** Every brokerage fee booked against this instrument, per currency. */
   readonly fees: readonly Money[];
-  /**
-   * The same fees, each currency with the window it was charged over. A row
-   * showing two currencies is a row that straddles a change in the currency
-   * DEGIRO bills fees in, and the dates are what make that legible.
-   */
-  readonly feePeriods: readonly FeePeriod[];
   /** `gross` with the fees below netted off, or null when `gross` is null. */
   readonly net: Money | null;
   /** The fees `net` absorbed — empty when nothing was realised. */
@@ -60,26 +45,6 @@ export interface PositionRows {
  * but every figure in the row is one the statement actually booked, and the
  * row's own arithmetic explains it.
  */
-function periodsOf(entries: readonly FeeEntry[]): FeePeriod[] {
-  const byCurrency = new Map<string, FeeEntry[]>();
-  for (const entry of entries) {
-    byCurrency.set(entry.currency, [...(byCurrency.get(entry.currency) ?? []), entry]);
-  }
-
-  return [...byCurrency.entries()]
-    .map(([currency, charged]): FeePeriod => {
-      const times = charged.map((entry) => entry.date.getTime());
-      return {
-        currency,
-        total: sumByCurrency(charged.map((entry) => entry.amount))[0]!,
-        count: charged.length,
-        from: new Date(Math.min(...times)),
-        to: new Date(Math.max(...times)),
-      };
-    })
-    .sort((a, b) => a.from.getTime() - b.from.getTime());
-}
-
 export function buildPositionRows(
   portfolio: PortfolioSummary,
   feeEntries: readonly FeeEntry[],
@@ -98,9 +63,7 @@ export function buildPositionRows(
     const pnl = pnlByIsin.get(position.isin);
     const gross = pnl?.amount ?? null;
     const matchedQuantity = pnl?.matchedQuantity ?? 0;
-    const charged = feesByIsin.get(position.isin) ?? [];
-    const fees = sumByCurrency(charged.map((entry) => entry.amount));
-    const feePeriods = periodsOf(charged);
+    const fees = sumByCurrency((feesByIsin.get(position.isin) ?? []).map((entry) => entry.amount));
 
     const nettable = gross !== null && matchedQuantity > 0;
     const applied = nettable ? fees.filter((fee) => fee.currency === gross.currency) : [];
@@ -116,7 +79,6 @@ export function buildPositionRows(
       matchedQuantity,
       gross,
       fees,
-      feePeriods,
       net: gross === null ? null : applied.reduce((total, fee) => total.add(fee), gross),
       appliedFees: applied,
       unappliedFees: unapplied,

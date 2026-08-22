@@ -1,4 +1,4 @@
-import type { FeePeriod, PositionRow } from '@/lib/analytics';
+import type { PositionRow } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -12,28 +12,16 @@ import {
 } from '@/components/ui/table';
 import { MoneyList } from '@/components/money-list';
 import { IsinLink } from '@/components/isin-link';
-import { formatDate, formatMoneyAbs, formatQuantity } from '@/lib/format';
+import { formatMoneyAbs, formatQuantity } from '@/lib/format';
 
 const PNL_UNAVAILABLE =
   'Realised profit and loss could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
 
 const FEES_METHOD =
-  'Every DEGIRO transaction fee booked against this instrument over the statement — the per-order charge on each buy and each sell, added up. It is a cost already paid, not a valuation.';
-
-const FEES_CURRENCY =
-  'DEGIRO bills its transaction fee in whichever currency it was charging in at the time, and it changed that during this statement. So one instrument can carry fees in two currencies without anything about the instrument, the exchange or the trade having changed — only the date. There is no exchange rate anywhere in a statement, so the two are listed side by side rather than invented into one number.';
+  'Every DEGIRO transaction fee booked against this instrument over the statement.';
 
 const PNL_METHOD =
   'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold, and only when they were charged in the same currency as the P/L.';
-
-function describePeriod(period: FeePeriod): string {
-  const span =
-    period.from.getTime() === period.to.getTime()
-      ? formatDate(period.from)
-      : `${formatDate(period.from)} – ${formatDate(period.to)}`;
-  const charges = `${period.count} ${period.count === 1 ? 'charge' : 'charges'}`;
-  return `${formatMoneyAbs(period.total)} over ${charges}, ${span}`;
-}
 
 function ExplainedHeader({ label, explanation }: { label: string; explanation: string }) {
   return (
@@ -82,26 +70,7 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                 </TableCell>
               ) : null}
               <TableCell>
-                <div className="flex flex-col items-end gap-0.5">
-                  <MoneyList amounts={row.fees} size="sm" hideZero className="items-end" />
-                  {row.fees.length > 1 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-muted-foreground cursor-help text-xs underline decoration-dotted">
-                          {row.fees.length} currencies
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-sm">
-                        <p>{FEES_CURRENCY}</p>
-                        <ul className="mt-2 space-y-0.5">
-                          {row.feePeriods.map((period) => (
-                            <li key={period.currency}>{describePeriod(period)}</li>
-                          ))}
-                        </ul>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                </div>
+                <MoneyList amounts={row.fees} size="sm" hideZero className="items-end" />
               </TableCell>
               <TableCell className="text-right">
                 {row.net ? (
@@ -149,11 +118,9 @@ export function PositionsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Active positions</CardTitle>
-          <CardDescription>
-            {positions.active.length === 0
-              ? 'Nothing is still held at the end of this statement.'
-              : 'Instruments with shares left at the end of this statement. Fees on a position that has not been sold are part of the cost of the shares you still hold, so they are shown but never netted into P/L.'}
-          </CardDescription>
+          {positions.active.length === 0 ? (
+            <CardDescription>Nothing is still held at the end of this statement.</CardDescription>
+          ) : null}
         </CardHeader>
         {positions.active.length > 0 ? (
           <CardContent>
@@ -165,11 +132,11 @@ export function PositionsSection() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Closed positions</CardTitle>
-          <CardDescription>
-            {positions.closed.length === 0
-              ? 'Every instrument traded in this statement is still held.'
-              : 'Instruments bought and sold back down to nothing. Every fee below has been netted into the realised figure, where both were charged in the same currency.'}
-          </CardDescription>
+          {positions.closed.length === 0 ? (
+            <CardDescription>
+              Every instrument traded in this statement is still held.
+            </CardDescription>
+          ) : null}
         </CardHeader>
         {positions.closed.length > 0 ? (
           <CardContent>

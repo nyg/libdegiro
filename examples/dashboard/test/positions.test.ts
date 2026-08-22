@@ -61,38 +61,6 @@ function withDiscrepancies(
   return { ...report, reconciliation, ok: report.ok && reconciliation.ok };
 }
 
-describe('buildPositionRows fee periods', () => {
-  it('dates each fee currency, so a two-currency row explains itself', () => {
-    const multi = [...rows.active, ...rows.closed].find((row) => row.fees.length > 1);
-    expect(multi).toBeDefined();
-
-    expect(multi!.feePeriods).toHaveLength(multi!.fees.length);
-    expect(multi!.feePeriods.map((period) => period.currency).sort()).toEqual(
-      multi!.fees.map((fee) => fee.currency).sort(),
-    );
-    for (const period of multi!.feePeriods) {
-      expect(period.count).toBeGreaterThan(0);
-      expect(period.from.getTime()).toBeLessThanOrEqual(period.to.getTime());
-      expect(period.total.currency).toBe(period.currency);
-    }
-  });
-
-  it('orders periods oldest first, which is what makes the change of currency legible', () => {
-    const multi = [...rows.active, ...rows.closed].find((row) => row.feePeriods.length > 1)!;
-    const starts = multi.feePeriods.map((period) => period.from.getTime());
-    expect([...starts].sort((a, b) => a - b)).toEqual(starts);
-  });
-
-  it('totals each period to the same figure as the currency roll-up', () => {
-    for (const row of [...rows.active, ...rows.closed]) {
-      for (const fee of row.fees) {
-        const period = row.feePeriods.find((entry) => entry.currency === fee.currency);
-        expect(period?.total.amount.toString()).toBe(fee.amount.toString());
-      }
-    }
-  });
-});
-
 describe('buildPositionRows', () => {
   it('splits held instruments from ones sold down to nothing', () => {
     expect(rows.active.every((row) => row.quantity !== 0)).toBe(true);
