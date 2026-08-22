@@ -51,11 +51,11 @@ export function buildPositionRows(
 ): PositionRows {
   const pnlByIsin = new Map(portfolio.realizedPnl.map((entry) => [entry.isin, entry]));
 
-  const feesByIsin = new Map<string, Money[]>();
+  const feesByIsin = new Map<string, FeeEntry[]>();
   for (const entry of feeEntries) {
     if (entry.category !== 'brokerage' || entry.isin === null) continue;
     const bucket = feesByIsin.get(entry.isin) ?? [];
-    bucket.push(entry.amount);
+    bucket.push(entry);
     feesByIsin.set(entry.isin, bucket);
   }
 
@@ -63,7 +63,7 @@ export function buildPositionRows(
     const pnl = pnlByIsin.get(position.isin);
     const gross = pnl?.amount ?? null;
     const matchedQuantity = pnl?.matchedQuantity ?? 0;
-    const fees = sumByCurrency(feesByIsin.get(position.isin) ?? []);
+    const fees = sumByCurrency((feesByIsin.get(position.isin) ?? []).map((entry) => entry.amount));
 
     const nettable = gross !== null && matchedQuantity > 0;
     const applied = nettable ? fees.filter((fee) => fee.currency === gross.currency) : [];

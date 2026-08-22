@@ -6,7 +6,12 @@ import { fxTradeMatcher, fxConversionMatcher } from './matchers/fx';
 import { dividendMatcher, dividendTaxMatcher, capitalReturnMatcher } from './matchers/dividend';
 import { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees';
 import { interestMatcher } from './matchers/interest';
-import { cashSweepMatcher, depositMatcher, cashTransferMatcher } from './matchers/cash';
+import {
+  cashSweepMatcher,
+  depositMatcher,
+  withdrawalMatcher,
+  cashTransferMatcher,
+} from './matchers/cash';
 
 /** Options for registering a matcher. */
 export interface RegisterMatcherOptions {
@@ -76,6 +81,7 @@ export const defaultMatchers: readonly Matcher[] = [
   connectivityFeeMatcher,
   interestMatcher,
   depositMatcher,
+  withdrawalMatcher,
   cashSweepMatcher,
   cashTransferMatcher,
 ];

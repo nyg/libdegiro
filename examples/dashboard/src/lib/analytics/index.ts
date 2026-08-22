@@ -8,9 +8,11 @@ import {
   type YearlyIncome,
 } from './income';
 import { balanceCurrencies, statementRange, type DateRange } from './timeseries';
+import { buildCashFlow, type CashFlowReport } from './cashflow';
 import { buildHealthReport, type HealthReport } from './health';
 import { buildPositionRows, type PositionRows } from './positions';
 
+export * from './cashflow';
 export * from './exchange';
 export * from './fees';
 export * from './summary';
@@ -35,6 +37,7 @@ export interface Analytics {
   readonly fees: FeeCollection;
   readonly feeTotals: FeeTotals;
   readonly feeContexts: readonly FeeContext[];
+  readonly cashFlow: CashFlowReport;
   readonly dividends: readonly DividendGroup[];
   readonly income: readonly YearlyIncome[];
   readonly health: HealthReport;
@@ -58,6 +61,7 @@ export function buildAnalytics(result: ParseResult): Analytics {
     fees,
     feeTotals: totalFees(fees.entries),
     feeContexts: explainFees(result),
+    cashFlow: buildCashFlow(result.movements),
     dividends: dividendsByInstrument(result.movements),
     income: incomeByYear(result.movements),
     health: buildHealthReport(result, unparseableExchanges),

@@ -3,7 +3,15 @@ import { readFileSync } from 'node:fs';
 import { Money, parseDegiroCsv, summarizePortfolio } from 'libdegiro';
 import { collectFees } from '@/lib/analytics/fees';
 import { buildPositionRows } from '@/lib/analytics/positions';
-import { buildHealthReport, describeHealthProblems } from '@/lib/analytics/health';
+import {
+  buildHealthReport,
+  describeHealthNotes,
+  describeHealthProblems,
+  diagnosticsText,
+  explainDiscrepancy,
+  type HealthReport,
+} from '@/lib/analytics/health';
+import type { BalanceDiscrepancy } from 'libdegiro';
 
 const csv = readFileSync(new URL('../../../test/fixtures/Account.csv', import.meta.url), 'utf8');
 const result = parseDegiroCsv(csv);
@@ -12,6 +20,46 @@ const fees = collectFees(result.movements);
 const rows = buildPositionRows(portfolio, fees.entries);
 
 const find = (isin: string) => [...rows.active, ...rows.closed].find((row) => row.isin === isin)!;
+
+function discrepancy(
+  kind: BalanceDiscrepancy['kind'],
+  difference: string,
+  overrides: Partial<BalanceDiscrepancy> = {},
+): BalanceDiscrepancy {
+  return {
+    currency: 'CHF',
+    kind,
+    line: 5,
+    previousLine: 6,
+    description: 'Achat 37 UBS Core MSCI Japan UCITS ETF hCHF acc@41,305 CHF (LU1169821888)',
+    movementKind: 'buy',
+    previousBalance: new Money('28283.84', 'CHF'),
+    statedMutation: new Money('-1528.28', 'CHF'),
+    appliedMutation: new Money('-1528.29', 'CHF'),
+    exactAmount: null,
+    expected: new Money('26755.56', 'CHF'),
+    actual: new Money('26755.55', 'CHF'),
+    difference: new Money(difference, 'CHF'),
+    ...overrides,
+  };
+}
+
+function withDiscrepancies(
+  report: HealthReport,
+  discrepancies: readonly BalanceDiscrepancy[],
+): HealthReport {
+  const unexplained = discrepancies.filter((entry) => entry.kind === 'unexplained');
+  const rounding = discrepancies.filter((entry) => entry.kind === 'rounding');
+  const reconciliation = {
+    ...report.reconciliation,
+    ok: unexplained.length === 0,
+    exact: discrepancies.length === 0,
+    discrepancies,
+    rounding,
+    unexplained,
+  };
+  return { ...report, reconciliation, ok: report.ok && reconciliation.ok };
+}
 
 describe('buildPositionRows', () => {
   it('splits held instruments from ones sold down to nothing', () => {
@@ -76,26 +124,53 @@ describe('describeHealthProblems', () => {
     expect(problems[0]).toContain('it is');
   });
 
-  it('reports a balance discrepancy as its own problem', () => {
-    const report = buildHealthReport(result, 0);
-    const broken = {
-      ...report,
-      reconciliation: {
-        ok: false,
-        byCurrency: report.reconciliation.byCurrency,
-        discrepancies: [
-          {
-            currency: 'CHF',
-            description: 'Achat',
-            expected: new Money('1', 'CHF'),
-            actual: new Money('2', 'CHF'),
-            difference: new Money('1', 'CHF'),
-          },
-        ],
-      },
-    };
-    expect(describeHealthProblems(broken)).toEqual([
-      '1 balance transition does not match the balance the statement itself reports — see the table below.',
+  it('reports an unexplained balance discrepancy as its own problem', () => {
+    const report = withDiscrepancies(buildHealthReport(result, 0), [
+      discrepancy('unexplained', '1'),
     ]);
+
+    expect(report.ok).toBe(false);
+    expect(describeHealthProblems(report)).toEqual([
+      '1 balance transition does not match the balance the statement itself reports, by more than rounding can explain — see the table below.',
+    ]);
+    expect(describeHealthNotes(report)).toEqual([]);
+  });
+
+  it('treats a rounding gap as a note, not a problem', () => {
+    const report = withDiscrepancies(buildHealthReport(result, 0), [
+      discrepancy('rounding', '-0.01'),
+    ]);
+
+    expect(report.ok).toBe(true);
+    expect(describeHealthProblems(report)).toEqual([]);
+    expect(describeHealthNotes(report)[0]).toContain('1 balance transition is off');
+  });
+
+  it('explains a half-centime rounding from the row that caused it', () => {
+    const entry = discrepancy('rounding', '-0.01', {
+      statedMutation: new Money('-1528.28', 'CHF'),
+      appliedMutation: new Money('-1528.29', 'CHF'),
+      exactAmount: new Money('-1528.285', 'CHF'),
+    });
+
+    const sentence = explainDiscrepancy(entry);
+    expect(sentence).toContain('-1528.285 CHF');
+    expect(sentence).toContain('-1528.28 CHF');
+    expect(sentence).toContain('-1528.29 CHF');
+  });
+
+  it('puts the failing arithmetic into the diagnostics blob', () => {
+    const report = withDiscrepancies(buildHealthReport(result, 0), [
+      discrepancy('rounding', '-0.01', {
+        exactAmount: new Money('-1528.285', 'CHF'),
+      }),
+    ]);
+
+    const text = diagnosticsText(report, 'fr');
+    expect(text).toContain('balance discrepancies (1)');
+    expect(text).toContain('quantity × price');
+    expect(text).toContain('-1528.285 CHF');
+    expect(text).toContain('previous row');
+    expect(text).toContain('reading');
   });
 });

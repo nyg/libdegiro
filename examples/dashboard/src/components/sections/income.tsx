@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { MoneyList } from '@/components/money-list';
+import { IsinLink } from '@/components/isin-link';
 import { formatDate, formatPercent } from '@/lib/format';
 
 export function IncomeSection() {
@@ -85,6 +86,7 @@ export function IncomeSection() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Instrument</TableHead>
+                    <TableHead>ISIN</TableHead>
                     <TableHead className="text-right">Gross</TableHead>
                     <TableHead className="text-right">Tax</TableHead>
                     <TableHead className="text-right">Net</TableHead>
@@ -95,7 +97,16 @@ export function IncomeSection() {
                 <TableBody>
                   {dividends.map((group) => (
                     <TableRow key={group.key}>
-                      <TableCell className="max-w-xs truncate">{group.label}</TableCell>
+                      <TableCell className="max-w-xs">
+                        <span className="block truncate">{group.label}</span>
+                      </TableCell>
+                      <TableCell>
+                        {group.isin ? (
+                          <IsinLink isin={group.isin} product={group.label} />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <MoneyList amounts={group.gross} size="sm" className="items-end" />
                       </TableCell>
