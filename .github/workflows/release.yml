@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  NODE_VERSION: '26.5.0'
+  PNPM_VERSION: '11.18.0'
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch
+        if: github.ref_name != 'master'
+        run: |
+          echo "::error::Releases must be created from the master branch (current: ${{ github.ref_name }})"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
+
+      - name: Check npm supports trusted publishing
+        run: |
+          npm_version=$(npm --version)
+          echo "npm $npm_version"
+          if [ "$(printf '%s\n11.5.1\n' "$npm_version" | sort -V | head -1)" != "11.5.1" ]; then
+            echo "::error::Trusted publishing requires npm >= 11.5.1, got $npm_version"
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run lint
+
+      - run: pnpm run typecheck
+
+      - run: pnpm run test
+
+      - name: Install git-cliff
+        run: |
+          gh release download --repo orhun/git-cliff --pattern 'git-cliff-*-x86_64-unknown-linux-gnu.tar.gz'
+          tar xzf git-cliff-*-x86_64-unknown-linux-gnu.tar.gz --strip-components=1 --wildcards '*/git-cliff'
+          sudo mv git-cliff /usr/local/bin/
+          git cliff --version
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compute release version
+        run: |
+          current=$(node -p "require('./package.json').version")
+          if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected a semantic version in package.json, got: $current"
+            exit 1
+          fi
+
+          npm --no-git-tag-version version "${{ inputs.bump }}" > /dev/null
+          release=$(node -p "require('./package.json').version")
+          echo "RELEASE_VERSION=$release" >> "$GITHUB_ENV"
+          echo "Release: $current → $release"
+
+      - name: Check tag does not already exist
+        run: |
+          if git show-ref --tags --verify --quiet "refs/tags/v${{ env.RELEASE_VERSION }}"; then
+            echo "::error::Tag v${{ env.RELEASE_VERSION }} already exists"
+            exit 1
+          fi
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate changelog
+        run: ./scripts/generate-changelog.sh "${{ env.RELEASE_VERSION }}"
+
+      - name: Commit and tag release
+        run: |
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): v${{ env.RELEASE_VERSION }}"
+          git tag "v${{ env.RELEASE_VERSION }}"
+
+      - name: Push release commit and tag
+        run: |
+          git push origin master
+          git push origin "v${{ env.RELEASE_VERSION }}"
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+
+      - name: Generate release notes
+        run: git cliff --latest --strip all -o RELEASE_NOTES.md
+
+      - name: Create GitHub release
+        run: |
+          gh release create "v${{ env.RELEASE_VERSION }}" \
+            --title "Release v${{ env.RELEASE_VERSION }}" \
+            --verify-tag \
+            -F RELEASE_NOTES.md
+        env:
+          GH_TOKEN: ${{ github.token }}
