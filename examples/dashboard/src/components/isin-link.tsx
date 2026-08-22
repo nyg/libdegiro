@@ -2,24 +2,49 @@ import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * justETF, because a DEGIRO statement is overwhelmingly ETFs and justETF is the
- * only free ISIN-addressable profile that shows holdings, TER and domicile
- * without an account. It has no page for an ordinary share, so the link is
- * marked as a lookup rather than dressed up as the instrument's home page.
+ * No single free site resolves every ISIN into something a holder wants to
+ * read, so the destination follows the instrument.
+ *
+ * justETF has the profile — holdings, TER, domicile, replication — for a fund,
+ * and no page at all for an ordinary share. Börse Frankfurt is the reverse: its
+ * `/equity/{isin}` path resolves any listed share, Swiss or American, but its
+ * fund pages are addressed by slug rather than by ISIN. An ISIN carries no
+ * instrument type, so the product name decides.
  *
  * Navigation, not a request: the app's `connect-src 'none'` policy is untouched
  * and nothing about the statement leaves this tab until the user clicks.
  */
-const profileUrl = (isin: string): string =>
-  `https://www.justetf.com/en/etf-profile.html?isin=${encodeURIComponent(isin)}`;
+const FUND_NAME = /\b(etf|etc|etn|ucits|fund|fonds|sicav|index|trust)\b/i;
 
-export function IsinLink({ isin, className }: { isin: string; className?: string }) {
+interface Destination {
+  readonly url: string;
+  readonly site: string;
+}
+
+function destinationFor(isin: string, product: string | null): Destination {
+  const encoded = encodeURIComponent(isin);
+  return product !== null && FUND_NAME.test(product)
+    ? { url: `https://www.justetf.com/en/etf-profile.html?isin=${encoded}`, site: 'justETF' }
+    : { url: `https://www.boerse-frankfurt.de/equity/${encoded}`, site: 'Börse Frankfurt' };
+}
+
+export function IsinLink({
+  isin,
+  product = null,
+  className,
+}: {
+  isin: string;
+  product?: string | null;
+  className?: string;
+}) {
+  const { url, site } = destinationFor(isin, product);
+
   return (
     <a
-      href={profileUrl(isin)}
+      href={url}
       target="_blank"
       rel="noreferrer noopener"
-      title={`Look up ${isin} on justETF`}
+      title={`Look up ${isin} on ${site}`}
       className={cn(
         'tabular text-muted-foreground hover:text-foreground group inline-flex items-center gap-1 text-xs underline decoration-dotted underline-offset-4',
         className,

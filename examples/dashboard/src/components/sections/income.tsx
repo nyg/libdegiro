@@ -102,7 +102,7 @@ export function IncomeSection() {
                       </TableCell>
                       <TableCell>
                         {group.isin ? (
-                          <IsinLink isin={group.isin} />
+                          <IsinLink isin={group.isin} product={group.label} />
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}

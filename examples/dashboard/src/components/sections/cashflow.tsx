@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,43 @@ import { MoneyList } from '@/components/money-list';
 import { StatCard } from '@/components/stat-card';
 import { formatAxisNumber, formatDate, formatDecimal, toChartNumber } from '@/lib/format';
 
+const BAR_WIDTH = 12;
+
+/**
+ * A fixed-width bar, centred on the position Recharts computed.
+ *
+ * On a numeric time axis there are no bands, so Recharts derives bar width from
+ * the smallest gap between two points — and deposits arrive in bursts days
+ * apart inside a two-year span, which works out at under three pixels. `barSize`
+ * does not help: it is clamped to that same figure. Only the geometry is
+ * overridden here; x, y and height stay exactly as the chart placed them, so
+ * the bar still sits on its real date.
+ */
+function FixedBar({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  fill,
+}: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+}) {
+  return (
+    <rect
+      x={x + width / 2 - BAR_WIDTH / 2}
+      y={y}
+      width={BAR_WIDTH}
+      height={height}
+      rx={2}
+      fill={fill}
+    />
+  );
+}
+
 export function CashFlowSection() {
   const { cashFlow } = useAnalytics();
   const [currency, setCurrency] = useState(() => cashFlow.currencies[0] ?? '');
@@ -49,8 +86,8 @@ export function CashFlowSection() {
   const config = useMemo(
     () =>
       ({
-        cumulative: { label: `Net funded (${active})`, color: 'var(--chart-1)' },
-        amount: { label: `Single transfer (${active})`, color: 'var(--chart-3)' },
+        amount: { label: `This transfer (${active})`, color: 'var(--chart-3)' },
+        cumulative: { label: `Running total (${active})`, color: 'var(--chart-1)' },
       }) satisfies ChartConfig,
     [active],
   );
@@ -95,8 +132,10 @@ export function CashFlowSection() {
           <div className="space-y-1.5">
             <CardTitle className="text-base">Money in and out over time</CardTitle>
             <CardDescription>
-              Only transfers across the account boundary. Sweeps to and from the flatexDEGIRO cash
-              account move money between two accounts you own and are excluded.
+              Bars are single transfers, read against the left axis; the step line is the running
+              total, read against the right. Only transfers across the account boundary count —
+              sweeps to and from the flatexDEGIRO cash account move money between two accounts you
+              own and are excluded.
             </CardDescription>
           </div>
           {cashFlow.currencies.length > 1 ? (
@@ -114,42 +153,63 @@ export function CashFlowSection() {
             </Select>
           ) : null}
         </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <ChartContainer config={config} className="h-[240px] w-full">
-            <LineChart accessibilityLayer data={data} margin={{ left: 4, right: 8 }}>
+        <CardContent>
+          <ChartContainer config={config} className="h-[340px] w-full">
+            <ComposedChart accessibilityLayer data={data} margin={{ left: 4, right: 4 }}>
               <CartesianGrid vertical={false} />
-              <TimeAxis />
+              <XAxis
+                dataKey="t"
+                type="number"
+                scale="time"
+                domain={['dataMin', 'dataMax']}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={40}
+                padding={{ left: 24, right: 24 }}
+                tickFormatter={(value: number) => formatDate(new Date(value))}
+              />
               <YAxis
+                yAxisId="transfer"
                 tickLine={false}
                 axisLine={false}
                 width={64}
                 tickFormatter={formatAxisNumber}
               />
-              <ChartTooltip content={<CashFlowTooltip />} />
+              <YAxis
+                yAxisId="running"
+                orientation="right"
+                tickLine={false}
+                axisLine={false}
+                width={64}
+                tickFormatter={formatAxisNumber}
+              />
+              <ChartTooltip
+                cursor={{ strokeDasharray: 4 }}
+                content={
+                  <ChartTooltipContent
+                    indicator="line"
+                    labelFormatter={(_label, payload) => {
+                      const point = payload[0]?.payload as { t: number } | undefined;
+                      return point ? formatDate(new Date(point.t)) : '';
+                    }}
+                    valueFormatter={(value) =>
+                      typeof value === 'number' ? formatDecimal(value) : String(value)
+                    }
+                  />
+                }
+              />
+              <Bar yAxisId="transfer" dataKey="amount" fill="var(--color-amount)" shape={<FixedBar />} />
               <Line
+                yAxisId="running"
                 dataKey="cumulative"
                 type="stepAfter"
                 stroke="var(--color-cumulative)"
                 strokeWidth={2}
-                dot={{ r: 2 }}
-                activeDot={{ r: 4 }}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
               />
-            </LineChart>
-          </ChartContainer>
-
-          <ChartContainer config={config} className="h-[160px] w-full">
-            <BarChart accessibilityLayer data={data} margin={{ left: 4, right: 8 }}>
-              <CartesianGrid vertical={false} />
-              <TimeAxis />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={64}
-                tickFormatter={formatAxisNumber}
-              />
-              <ChartTooltip content={<CashFlowTooltip />} />
-              <Bar dataKey="amount" fill="var(--color-amount)" radius={2} />
-            </BarChart>
+            </ComposedChart>
           </ChartContainer>
         </CardContent>
       </Card>
@@ -214,38 +274,4 @@ function countOf(
   field: 'depositCount' | 'withdrawalCount',
 ): number {
   return entries.reduce((sum, entry) => sum + entry[field], 0);
-}
-
-/**
- * A numeric time axis, not a category one: deposits cluster into a few bursts
- * separated by months, and a category axis would space them evenly and hide
- * exactly that shape.
- */
-function TimeAxis() {
-  return (
-    <XAxis
-      dataKey="t"
-      type="number"
-      scale="time"
-      domain={['dataMin', 'dataMax']}
-      tickLine={false}
-      axisLine={false}
-      tickMargin={8}
-      minTickGap={40}
-      tickFormatter={(value: number) => formatDate(new Date(value))}
-    />
-  );
-}
-
-function CashFlowTooltip() {
-  return (
-    <ChartTooltipContent
-      indicator="line"
-      labelFormatter={(_label, payload) => {
-        const point = payload[0]?.payload as { t: number } | undefined;
-        return point ? formatDate(new Date(point.t)) : '';
-      }}
-      valueFormatter={(value) => (typeof value === 'number' ? formatDecimal(value) : String(value))}
-    />
-  );
 }

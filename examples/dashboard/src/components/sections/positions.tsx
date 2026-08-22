@@ -1,4 +1,4 @@
-import type { PositionRow } from '@/lib/analytics';
+import type { FeePeriod, PositionRow } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { MoneyList } from '@/components/money-list';
 import { IsinLink } from '@/components/isin-link';
-import { formatMoneyAbs, formatQuantity } from '@/lib/format';
+import { formatDate, formatMoneyAbs, formatQuantity } from '@/lib/format';
 
 const PNL_UNAVAILABLE =
   'Realised profit and loss could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
@@ -21,10 +21,19 @@ const FEES_METHOD =
   'Every DEGIRO transaction fee booked against this instrument over the statement — the per-order charge on each buy and each sell, added up. It is a cost already paid, not a valuation.';
 
 const FEES_CURRENCY =
-  'DEGIRO charges the transaction fee in the currency of the exchange’s home market, which is often not the currency the trade settled in: a Swiss-listed ETF bought in CHF is routinely charged in EUR. There is no exchange rate anywhere in a statement, so the two are listed side by side rather than invented into one number.';
+  'DEGIRO bills its transaction fee in whichever currency it was charging in at the time, and it changed that during this statement. So one instrument can carry fees in two currencies without anything about the instrument, the exchange or the trade having changed — only the date. There is no exchange rate anywhere in a statement, so the two are listed side by side rather than invented into one number.';
 
 const PNL_METHOD =
   'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold, and only when they were charged in the same currency as the P/L.';
+
+function describePeriod(period: FeePeriod): string {
+  const span =
+    period.from.getTime() === period.to.getTime()
+      ? formatDate(period.from)
+      : `${formatDate(period.from)} – ${formatDate(period.to)}`;
+  const charges = `${period.count} ${period.count === 1 ? 'charge' : 'charges'}`;
+  return `${formatMoneyAbs(period.total)} over ${charges}, ${span}`;
+}
 
 function ExplainedHeader({ label, explanation }: { label: string; explanation: string }) {
   return (
@@ -63,7 +72,7 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                 <span className="block truncate">{row.product ?? row.isin}</span>
               </TableCell>
               <TableCell>
-                <IsinLink isin={row.isin} />
+                <IsinLink isin={row.isin} product={row.product} />
               </TableCell>
               <TableCell className="tabular text-right">{formatQuantity(row.bought)}</TableCell>
               <TableCell className="tabular text-right">{formatQuantity(row.sold)}</TableCell>
@@ -79,10 +88,17 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-muted-foreground cursor-help text-xs underline decoration-dotted">
-                          two currencies
+                          {row.fees.length} currencies
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">{FEES_CURRENCY}</TooltipContent>
+                      <TooltipContent className="max-w-sm">
+                        <p>{FEES_CURRENCY}</p>
+                        <ul className="mt-2 space-y-0.5">
+                          {row.feePeriods.map((period) => (
+                            <li key={period.currency}>{describePeriod(period)}</li>
+                          ))}
+                        </ul>
+                      </TooltipContent>
                     </Tooltip>
                   ) : null}
                 </div>
