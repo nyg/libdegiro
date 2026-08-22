@@ -1,6 +1,26 @@
 # Changelog
 
 
+## [1.0.0](https://github.com/nyg/libdegiro/compare/v0.1.1..v1.0.0) - 2026-08-22
+
+### ⛰️  Features
+
+- [`b4ff633`](https://github.com/nyg/libdegiro/commit/b4ff633db5dbed5f5ef2cba508cadf7623303353) *(dashboard)* Make balance discrepancies diagnosable and chart external cash flow ([#37](https://github.com/nyg/libdegiro/issues/37))
+- [`b6a5614`](https://github.com/nyg/libdegiro/commit/b6a56144a3377c5094169891a9eec4c7a089f915) *(dashboard)* Rework overview, positions and parse health ([#31](https://github.com/nyg/libdegiro/issues/31))
+
+### 🐛 Bug Fixes
+
+- [`fff9ebb`](https://github.com/nyg/libdegiro/commit/fff9ebb04933097ca271f858280820317df9910d) *(cash)* Correct the reported balance and make the chart legible ([#34](https://github.com/nyg/libdegiro/issues/34))
+
+### 📚 Documentation
+
+- [`39a9b9b`](https://github.com/nyg/libdegiro/commit/39a9b9b6d5e90fc9ba7f12f00a2662285c6bcea4) Add AGENTS.md as the agent brief ([#35](https://github.com/nyg/libdegiro/issues/35))
+
+### ⚙️ Miscellaneous
+
+- [`7365298`](https://github.com/nyg/libdegiro/commit/73652987ba18a60c9d2faa1cf4728509d6f4762e) Replace csv-parse with papaparse ([#33](https://github.com/nyg/libdegiro/issues/33))
+- [`2c54153`](https://github.com/nyg/libdegiro/commit/2c5415378ea0f50711f7f1d3ffb7ea36ce45f37e) Replace tsup with tsdown ([#30](https://github.com/nyg/libdegiro/issues/30))
+
 ## [0.1.1](https://github.com/nyg/libdegiro/compare/v0.1.0..v0.1.1) - 2026-08-22
 
 ### 📚 Documentation

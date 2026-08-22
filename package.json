@@ -1,6 +1,6 @@
 {
   "name": "libdegiro",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Parse DEGIRO broker account statement (Account.csv) exports into a typed, extensible domain model.",
   "type": "module",
   "sideEffects": false,
