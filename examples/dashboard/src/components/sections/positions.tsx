@@ -11,24 +11,31 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { MoneyList } from '@/components/money-list';
+import { IsinLink } from '@/components/isin-link';
 import { formatMoneyAbs, formatQuantity } from '@/lib/format';
 
 const PNL_UNAVAILABLE =
   'Realised profit and loss could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
 
+const FEES_METHOD =
+  'Every DEGIRO transaction fee booked against this instrument over the statement — the per-order charge on each buy and each sell, added up. It is a cost already paid, not a valuation.';
+
+const FEES_CURRENCY =
+  'DEGIRO charges the transaction fee in the currency of the exchange’s home market, which is often not the currency the trade settled in: a Swiss-listed ETF bought in CHF is routinely charged in EUR. There is no exchange rate anywhere in a statement, so the two are listed side by side rather than invented into one number.';
+
 const PNL_METHOD =
   'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold, and only when they were charged in the same currency as the P/L.';
 
-function RealisedHeader() {
+function ExplainedHeader({ label, explanation }: { label: string; explanation: string }) {
   return (
     <TableHead className="text-right">
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="cursor-help underline decoration-dotted underline-offset-4">
-            Realised P/L
+            {label}
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs">{PNL_METHOD}</TooltipContent>
+        <TooltipContent className="max-w-xs">{explanation}</TooltipContent>
       </Tooltip>
     </TableHead>
   );
@@ -45,8 +52,8 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
             <TableHead className="text-right">Bought</TableHead>
             <TableHead className="text-right">Sold</TableHead>
             {showHeld ? <TableHead className="text-right">Held</TableHead> : null}
-            <TableHead className="text-right">Fees</TableHead>
-            <RealisedHeader />
+            <ExplainedHeader label="Transaction fees" explanation={FEES_METHOD} />
+            <ExplainedHeader label="Realised P/L" explanation={PNL_METHOD} />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,7 +62,9 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
               <TableCell className="max-w-xs">
                 <span className="block truncate">{row.product ?? row.isin}</span>
               </TableCell>
-              <TableCell className="tabular text-muted-foreground text-xs">{row.isin}</TableCell>
+              <TableCell>
+                <IsinLink isin={row.isin} />
+              </TableCell>
               <TableCell className="tabular text-right">{formatQuantity(row.bought)}</TableCell>
               <TableCell className="tabular text-right">{formatQuantity(row.sold)}</TableCell>
               {showHeld ? (
@@ -64,7 +73,19 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                 </TableCell>
               ) : null}
               <TableCell>
-                <MoneyList amounts={row.fees} size="sm" hideZero className="items-end" />
+                <div className="flex flex-col items-end gap-0.5">
+                  <MoneyList amounts={row.fees} size="sm" hideZero className="items-end" />
+                  {row.fees.length > 1 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground cursor-help text-xs underline decoration-dotted">
+                          two currencies
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">{FEES_CURRENCY}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </div>
               </TableCell>
               <TableCell className="text-right">
                 {row.net ? (
@@ -115,7 +136,7 @@ export function PositionsSection() {
           <CardDescription>
             {positions.active.length === 0
               ? 'Nothing is still held at the end of this statement.'
-              : `${positions.active.length} instruments still held.`}
+              : 'Instruments with shares left at the end of this statement. Fees on a position that has not been sold are part of the cost of the shares you still hold, so they are shown but never netted into P/L.'}
           </CardDescription>
         </CardHeader>
         {positions.active.length > 0 ? (
@@ -131,7 +152,7 @@ export function PositionsSection() {
           <CardDescription>
             {positions.closed.length === 0
               ? 'Every instrument traded in this statement is still held.'
-              : `${positions.closed.length} instruments fully sold down.`}
+              : 'Instruments bought and sold back down to nothing. Every fee below has been netted into the realised figure, where both were charged in the same currency.'}
           </CardDescription>
         </CardHeader>
         {positions.closed.length > 0 ? (

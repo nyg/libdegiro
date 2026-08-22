@@ -3,6 +3,7 @@ import { parseCashTransferDescription } from '../descriptions';
 
 const CASH_SWEEP = /^degiro cash sweep transfer/i;
 const DEPOSIT = /^versement de fonds/i;
+const WITHDRAWAL = /^retrait de fonds/i;
 
 /** Matches a cash sweep between the DEGIRO account and the cash account. */
 export const cashSweepMatcher: Matcher = {
@@ -19,6 +20,15 @@ export const depositMatcher: Matcher = {
   match({ record }) {
     if (!DEPOSIT.test(record.description.trim())) return null;
     return { kind: 'deposit', amount: record.mutation, record };
+  },
+};
+
+/** Matches an external withdrawal of funds (`Retrait de fonds`). */
+export const withdrawalMatcher: Matcher = {
+  name: 'withdrawal',
+  match({ record }) {
+    if (!WITHDRAWAL.test(record.description.trim())) return null;
+    return { kind: 'withdrawal', amount: record.mutation, record };
   },
 };
 

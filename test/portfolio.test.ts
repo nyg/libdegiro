@@ -105,6 +105,20 @@ describe('summarizePortfolio on the sample export', () => {
     expect(summary.interest.length).toBeGreaterThan(0);
   });
 
+  it('splits external cash flow into deposits and withdrawals by sign', () => {
+    const csv = [
+      'Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre',
+      '03-03-2025,10:00,03-03-2025,,,Retrait de fonds,,CHF,"-400,00",CHF,"600,00",',
+      '02-03-2025,10:00,02-03-2025,,,Versement de fonds,,CHF,"-100,00",CHF,"1000,00",',
+      '01-03-2025,10:00,01-03-2025,,,Versement de fonds,,CHF,"1100,00",CHF,"1100,00",',
+    ].join('\n');
+    const withdrawn = summarizePortfolio(parseDegiroCsv(csv).movements);
+
+    expect(withdrawn.deposits.map(String)).toEqual(['1100 CHF']);
+    expect(withdrawn.withdrawals.map(String)).toEqual(['-500 CHF']);
+    expect(withdrawn.netExternalFlow.map(String)).toEqual(['600 CHF']);
+  });
+
   it('returns null realized P/L for a multi-currency instrument (best-effort)', () => {
     // SPDR MSCI ACWI was traded in both CHF and EUR.
     const acwi = summary.realizedPnl.find((p) => p.isin === 'IE00B44Z5B48');

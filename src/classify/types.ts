@@ -18,6 +18,7 @@ export type MovementKind =
   | 'cashSweep'
   | 'cashTransfer'
   | 'deposit'
+  | 'withdrawal'
   | 'unknown';
 
 /** Buy or sell. */
@@ -113,6 +114,9 @@ export interface CashTransferMovement extends BaseMovement<'cashTransfer'> {
 /** External deposit of funds (`Versement de fonds`). */
 export type DepositMovement = BaseMovement<'deposit'>;
 
+/** External withdrawal of funds (`Retrait de fonds`). */
+export type WithdrawalMovement = BaseMovement<'withdrawal'>;
+
 /** A row that no matcher could classify; preserved verbatim, never dropped. */
 export type UnknownMovement = BaseMovement<'unknown'>;
 
@@ -130,6 +134,7 @@ export type Movement =
   | CashSweepMovement
   | CashTransferMovement
   | DepositMovement
+  | WithdrawalMovement
   | UnknownMovement;
 
 /** Context passed to every {@link Matcher}. */

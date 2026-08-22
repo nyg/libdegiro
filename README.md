@@ -114,7 +114,7 @@ Parsing is **lenient**: a row with an unparseable date is dropped and reported a
 
 Each row is classified into a `Movement` — a discriminated union on `kind`:
 
-`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` · `connectivityFee` · `interest` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` · `cashTransfer` · `deposit` · `unknown`
+`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` · `connectivityFee` · `interest` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` · `cashTransfer` · `deposit` · `withdrawal` · `unknown`
 
 ```ts
 for (const m of result.movements) {
@@ -176,12 +176,32 @@ import { parseDegiroCsv, reconcileBalances } from 'libdegiro';
 const { movements } = parseDegiroCsv(csvText);
 const report = reconcileBalances(movements);
 
-report.ok; // true when everything reconciles
-report.discrepancies; // [{ currency, line, expected, actual, difference }]
+report.ok; // true when nothing beyond rounding failed to reconcile
+report.exact; // true when every transition matched to the last decimal
+report.rounding; // gaps the statement's own rounding explains
+report.unexplained; // gaps it does not — the ones worth acting on
+report.discrepancies; // both kinds, flattened across currencies
 report.byCurrency; // per-currency opening/closing balances + checks
 ```
 
 DEGIRO statements interleave **two** balance streams per currency: the DEGIRO trading account and the flatexDEGIRO **cash** account. The cash-transfer (`Virement … Compte Espèces`) rows report the cash account; the reconciler accounts for this automatically (`vers` adds, `depuis` subtracts).
+
+**Not every gap is a bug.** A statement rounds `37 × 41,305 = 1528,285` down to `-1528,28` in its amount column and up to `-1528,29` in its balance column, so its two columns describe the same purchase one centime apart. Gaps no wider than `roundingTolerance` (default `0.01`) are classified `rounding` and leave `ok` true; set it to `0` to treat every gap as unexplained.
+
+Each discrepancy carries the whole transition, not just the difference — both line numbers, the previous balance, what the amount column claimed, what the balance column actually applied, and `exactAmount` (quantity × unit price) when the row is a trade. That is what distinguishes a misclassified row from a statement quirk:
+
+```ts
+const [entry] = report.discrepancies;
+
+entry.kind; // 'rounding' | 'unexplained'
+entry.line; // 5
+entry.previousLine; // 6
+entry.previousBalance; // 28283.84 CHF
+entry.statedMutation; // -1528.28 CHF — what the amount column says
+entry.appliedMutation; // -1528.29 CHF — what the balance column did
+entry.exactAmount; // -1528.285 CHF — quantity × unit price
+entry.difference; // -0.01 CHF
+```
 
 ## Portfolio summary
 
@@ -196,9 +216,14 @@ summary.cashByCurrency; // latest trading balance per currency
 summary.dividends; // totals per currency
 summary.fees; // brokerage + connectivity totals
 summary.realizedPnl; // FIFO realized P/L per ISIN
+summary.deposits; // money in from outside the account
+summary.withdrawals; // money out to outside it, kept negative
+summary.netExternalFlow; // deposits + withdrawals
 ```
 
-Individual helpers (`computePositions`, `computeRealizedPnl`, `cashByCurrency`, `sumByCurrency`) are exported too.
+Deposits and withdrawals are split by the **sign** of the mutation, not by the description: DEGIRO books a withdrawal as a negative `Versement de fonds` at least as often as it names it `Retrait de fonds`. Internal sweeps to the flatexDEGIRO cash account are excluded — they move money between two accounts you own.
+
+Individual helpers (`computePositions`, `computeRealizedPnl`, `cashByCurrency`, `externalFlows`, `sumByCurrency`) are exported too.
 
 > **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is multi-currency, incomplete within the statement window, or missing a price — rather than guessing.
 

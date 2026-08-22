@@ -11,6 +11,7 @@ import { Dropzone } from '@/components/dropzone';
 import { FeesSection } from '@/components/sections/fees';
 import { OverviewSection } from '@/components/sections/overview';
 import { CashSection } from '@/components/sections/cash';
+import { CashFlowSection } from '@/components/sections/cashflow';
 import { PositionsSection } from '@/components/sections/positions';
 import { IncomeSection } from '@/components/sections/income';
 import { ActivitySection } from '@/components/sections/activity';
@@ -20,6 +21,7 @@ const TABS = [
   { value: 'overview', label: 'Overview', Component: OverviewSection },
   { value: 'positions', label: 'Positions', Component: PositionsSection },
   { value: 'cash', label: 'Cash', Component: CashSection },
+  { value: 'deposits', label: 'Deposits', Component: CashFlowSection },
   { value: 'income', label: 'Income', Component: IncomeSection },
   { value: 'activity', label: 'Activity', Component: ActivitySection },
   { value: 'fees', label: 'Fees', Component: FeesSection },

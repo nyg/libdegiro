@@ -40,8 +40,12 @@ export interface PortfolioSummary {
   readonly dividendTax: readonly Money[];
   /** Total fees paid per currency (brokerage + connectivity). */
   readonly fees: readonly Money[];
-  /** Total external deposits per currency. */
+  /** Money paid into the account from outside it, per currency. */
   readonly deposits: readonly Money[];
+  /** Money paid out of the account to outside it, per currency, kept negative. */
+  readonly withdrawals: readonly Money[];
+  /** `deposits + withdrawals` — what the account was actually funded with. */
+  readonly netExternalFlow: readonly Money[];
   /** Total interest income per currency. */
   readonly interest: readonly Money[];
 }
@@ -181,6 +185,19 @@ const amountsOf = (movements: readonly Movement[], kinds: ReadonlySet<Movement['
     .map((m) => m.amount)
     .filter((a): a is Money => a !== null);
 
+const EXTERNAL_FLOW_KINDS: ReadonlySet<Movement['kind']> = new Set(['deposit', 'withdrawal']);
+
+/**
+ * Every movement of money across the account boundary, in or out.
+ *
+ * Direction comes from the sign, not the description: DEGIRO books a withdrawal
+ * as a negative `Versement de fonds` at least as often as it names it one, so
+ * splitting on the matcher alone would file half of them as deposits.
+ */
+export function externalFlows(movements: readonly Movement[]): Money[] {
+  return amountsOf(movements, EXTERNAL_FLOW_KINDS);
+}
+
 /** Roll up a set of movements into a {@link PortfolioSummary}. */
 export function summarizePortfolio(movements: readonly Movement[]): PortfolioSummary {
   return {
@@ -190,7 +207,9 @@ export function summarizePortfolio(movements: readonly Movement[]): PortfolioSum
     dividends: sumByCurrency(amountsOf(movements, new Set(['dividend']))),
     dividendTax: sumByCurrency(amountsOf(movements, new Set(['dividendTax']))),
     fees: sumByCurrency(amountsOf(movements, new Set(['brokerageFee', 'connectivityFee']))),
-    deposits: sumByCurrency(amountsOf(movements, new Set(['deposit']))),
+    deposits: sumByCurrency(externalFlows(movements).filter((a) => a.isPositive())),
+    withdrawals: sumByCurrency(externalFlows(movements).filter((a) => a.isNegative())),
+    netExternalFlow: sumByCurrency(externalFlows(movements)),
     interest: sumByCurrency(amountsOf(movements, new Set(['interest']))),
   };
 }
