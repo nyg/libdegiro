@@ -89,8 +89,8 @@ break the app.
 
 The app depends on `libdegiro` as a workspace package and resolves it through
 the published `exports` map — not through a source alias. That is deliberate: it
-means the example exercises the `browser` export condition exactly as a real
-consumer would. A source alias would have hidden the `Buffer` bug that made the
+means the example resolves and bundles the library exactly as a real consumer
+would. A source alias would have hidden the `Buffer` bug that once made the
 library unusable in browsers.
 
 ### Deploying

@@ -33,7 +33,7 @@ A modern, ESM-only TypeScript library that turns a DEGIRO account statement into
 - 🪶 **Lenient parsing** — per-row problems are collected, never thrown
 - 🌊 **Streaming** parser for very large files
 - ✅ **Balance reconciliation** and **portfolio** aggregation built in
-- 🌍 **Runs in the browser** — the core entry ships a browser build; Node I/O is opt-in
+- 🌍 **Runs anywhere** — one isomorphic build for browsers, Node, Deno and workers; Node I/O is opt-in
 
 ---
 
@@ -52,33 +52,11 @@ ESM only.
 | `libdegiro`      | Parsing, classification, grouping, validation, portfolio | Node or a browser |
 | `libdegiro/node` | File and stream helpers                                  | Node 18+          |
 
-Anything touching `node:fs` or `node:stream` lives behind `libdegiro/node` —
-import it only where you have a filesystem.
+Anything touching `node:fs` or `node:stream` lives behind `libdegiro/node` — import it only where you have a filesystem.
 
-`libdegiro` itself imports no Node builtins, but that alone is not enough to run
-in a browser: `csv-parse/sync` uses the `Buffer` global at module scope. So the
-package ships a second build of the same sources, `dist/index.browser.js`, which
-resolves `csv-parse` to the browser build it publishes. A `browser` export
-condition selects it automatically:
+`libdegiro` itself imports no Node builtin, and neither does anything it depends on. CSV tokenizing goes through [`papaparse`](https://github.com/mholt/PapaParse), which publishes a `browser` field pointing at an 18 KB build free of `Buffer` and `require`, so `dist/index.js` is a single isomorphic bundle: Vite, webpack and rollup substitute that build with no configuration, while Node, Deno and edge runtimes load the same file and the same parser. There is no second build, and no export condition anyone has to resolve.
 
-```json
-".": {
-  "browser": "./dist/index.browser.js",
-  "import": "./dist/index.js"
-}
-```
-
-Vite, webpack and rollup honour that condition, so a browser bundle needs no
-configuration. Node ignores it and keeps the faster native-`Buffer` path.
-Runtimes that resolve neither condition — Deno and Cloudflare Workers among them
-— get the Node build and will need an explicit alias to
-`libdegiro/dist/index.browser.js`.
-
-The claim is tested rather than asserted: `test/entrypoints.test.ts` runs the
-browser bundle in a child process with `globalThis.Buffer` deleted and parses the
-full fixture.
-
----
+The claim is tested rather than asserted: `test/entrypoints.test.ts` runs `dist/index.js` in a child process with `globalThis.Buffer` deleted and parses the full fixture.
 
 ## Quick start
 
@@ -116,8 +94,6 @@ import { parseDegiroStream } from 'libdegiro/node';
 const result = await parseDegiroStream(createReadStream('./Account.csv'));
 ```
 
----
-
 ## The result
 
 `parseDegiroCsv` returns a `ParseResult`:
@@ -130,12 +106,7 @@ const result = await parseDegiroStream(createReadStream('./Account.csv'));
 | `transactions`                   | Composite `Transaction[]`, sorted newest first                |
 | `issues` / `errors` / `warnings` | Collected `ParseIssue`s (lenient parsing)                     |
 
-Parsing is **lenient**: a row with an unparseable date is dropped and reported as
-an `error`; a partially-parseable amount becomes a `warning`. The only thrown
-conditions are an empty input and a header that matches no dialect
-(`UnknownDialectError`).
-
----
+Parsing is **lenient**: a row with an unparseable date is dropped and reported as an `error`; a partially-parseable amount becomes a `warning`. The only thrown conditions are an empty input and a header that matches no dialect (`UnknownDialectError`).
 
 ## Domain model
 
@@ -143,9 +114,7 @@ conditions are an empty input and a header that matches no dialect
 
 Each row is classified into a `Movement` — a discriminated union on `kind`:
 
-`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` ·
-`connectivityFee` · `interest` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` ·
-`cashTransfer` · `deposit` · `unknown`
+`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` · `connectivityFee` · `interest` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` · `cashTransfer` · `deposit` · `unknown`
 
 ```ts
 for (const m of result.movements) {
@@ -164,8 +133,7 @@ for (const m of result.movements) {
 }
 ```
 
-Unrecognised rows are never dropped — they classify as `unknown` and keep their
-`record`, so nothing is lost.
+Unrecognised rows are never dropped — they classify as `unknown` and keep their `record`, so nothing is lost.
 
 ### Transactions
 
@@ -178,13 +146,9 @@ Related rows are grouped into a `Transaction` (discriminated union on `type`):
 - **`single`** — a standalone movement (dividend, interest, deposit, …)
 - **`composite`** — an order group that is neither a trade nor an FX trade
 
-Grouping is primarily by DEGIRO **order id**, with heuristics for order-less FX
-conversion pairs and cash-sweep pairs.
+Grouping is primarily by DEGIRO **order id**, with heuristics for order-less FX conversion pairs and cash-sweep pairs.
 
-> Amounts are intentionally **not** netted across currencies (fees are often in
-> EUR while a trade settles in CHF). Use the legs for currency-aware maths.
-
----
+> Amounts are intentionally **not** netted across currencies (fees are often in EUR while a trade settles in CHF). Use the legs for currency-aware maths.
 
 ## Money
 
@@ -202,8 +166,6 @@ a.toNumber(); // 0.1 (lossy — prefer .amount)
 a.add(Money.of('1', 'CHF')); // throws CurrencyMismatchError
 ```
 
----
-
 ## Balance reconciliation
 
 Verify that each per-currency running balance (`Solde`) is internally consistent:
@@ -219,12 +181,7 @@ report.discrepancies; // [{ currency, line, expected, actual, difference }]
 report.byCurrency; // per-currency opening/closing balances + checks
 ```
 
-DEGIRO statements interleave **two** balance streams per currency: the DEGIRO
-trading account and the flatexDEGIRO **cash** account. The cash-transfer
-(`Virement … Compte Espèces`) rows report the cash account; the reconciler
-accounts for this automatically (`vers` adds, `depuis` subtracts).
-
----
+DEGIRO statements interleave **two** balance streams per currency: the DEGIRO trading account and the flatexDEGIRO **cash** account. The cash-transfer (`Virement … Compte Espèces`) rows report the cash account; the reconciler accounts for this automatically (`vers` adds, `depuis` subtracts).
 
 ## Portfolio summary
 
@@ -241,19 +198,13 @@ summary.fees; // brokerage + connectivity totals
 summary.realizedPnl; // FIFO realized P/L per ISIN
 ```
 
-Individual helpers (`computePositions`, `computeRealizedPnl`, `cashByCurrency`,
-`sumByCurrency`) are exported too.
+Individual helpers (`computePositions`, `computeRealizedPnl`, `cashByCurrency`, `sumByCurrency`) are exported too.
 
-> **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose
-> history is multi-currency, incomplete within the statement window, or missing a
-> price — rather than guessing.
-
----
+> **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is multi-currency, incomplete within the statement window, or missing a price — rather than guessing.
 
 ## Extensibility
 
-Every stage is pluggable. You rarely need to fork the library to support a new
-export.
+Every stage is pluggable. You rarely need to fork the library to support a new export.
 
 ### Custom dialect (new locale / layout)
 
@@ -296,8 +247,7 @@ const classifier = createDefaultClassifierRegistry().register(referralMatcher);
 parseDegiroCsv(csv, { classifier });
 ```
 
-Matchers are evaluated by descending `priority`, then registration order; the
-first to return a movement wins. Records that match nothing become `unknown`.
+Matchers are evaluated by descending `priority`, then registration order; the first to return a movement wins. Records that match nothing become `unknown`.
 
 ### Custom grouping strategy
 
@@ -309,40 +259,23 @@ parseDegiroCsv(csv, {
 });
 ```
 
-The built-in helpers — `tokenizeCsv`, `mapRow`, `parseTradeDescription`,
-`DialectRegistry`, `ClassifierRegistry`, the individual matchers and strategies —
-are all exported so you can compose your own pipeline.
-
----
+The built-in helpers — `tokenizeCsv`, `mapRow`, `parseTradeDescription`, `DialectRegistry`, `ClassifierRegistry`, the individual matchers and strategies — are all exported so you can compose your own pipeline.
 
 ## Example: a browser dashboard
 
-[`examples/dashboard`](examples/dashboard) is a single-page app that turns an
-`Account.csv` into a dashboard of fees, cash, positions and income — running
-entirely in the browser, with a content security policy that blocks all network
-access. It is live at **https://nyg.github.io/libdegiro/**.
+[`examples/dashboard`](examples/dashboard) is a single-page app that turns an `Account.csv` into a dashboard of fees, cash, positions and income — running entirely in the browser, with a content security policy that blocks all network access. It is live at https://nyg.github.io/libdegiro/.
 
 ```sh
 pnpm dashboard:dev
 ```
 
-It consumes `libdegiro` as a workspace dependency through the published
-`exports` map, so it exercises the `browser` condition the way a real consumer
-would.
-
----
+It consumes `libdegiro` as a workspace dependency through the published `exports` map, so it exercises the browser path the way a real consumer would.
 
 ## Notes & caveats
 
-- The statement carries no timezone; times are parsed as **UTC** wall-clock for
-  deterministic, machine-independent results.
-- Rows are **newest-first** in the export; `records`/`movements` preserve that
-  order, while `transactions` are sorted by booking date (newest first).
-- Only `big.js` and `csv-parse` are runtime dependencies. `csv-parse`'s stream
-  API is reached only via `libdegiro/node`; the browser build swaps its sync
-  parser for the `csv-parse/browser/esm/sync` variant.
-
----
+- The statement carries no timezone; times are parsed as **UTC** wall-clock for deterministic, machine-independent results.
+- Rows are **newest-first** in the export; `records`/`movements` preserve that order, while `transactions` are sorted by booking date (newest first).
+- Only `big.js` and `papaparse` are runtime dependencies. papaparse's Node stream API is reached only via `libdegiro/node`; browser bundlers pick up its 18 KB browser build on their own.
 
 ## Development
 
@@ -356,13 +289,4 @@ pnpm build        # tsdown -> dist/ (ESM + .d.ts + sourcemaps)
 
 ### Test fixture
 
-`test/fixtures/Account.csv` is a **synthetic** statement, not a real export. It
-mirrors the shape of a genuine French DEGIRO file — column layout, movement
-types, order-id grouping, French decimals with `U+202F` thousands separators,
-double-spaced product names — and its running balances reconcile exactly, but
-every figure, date, ISIN and order id is fabricated. Drop your own `Account.csv`
-at the repo root to try the library against real data; it is git-ignored.
-
-## License
-
-MIT
+`test/fixtures/Account.csv` is a **synthetic** statement, not a real export. It mirrors the shape of a genuine French DEGIRO file — column layout, movement types, order-id grouping, French decimals with `U+202F` thousands separators, double-spaced product names — and its running balances reconcile exactly, but every figure, date, ISIN and order id is fabricated. Drop your own `Account.csv` at the repo root to try the library against real data; it is git-ignored.

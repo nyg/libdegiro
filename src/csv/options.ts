@@ -4,15 +4,12 @@ export interface TokenizeOptions {
   readonly delimiter?: string;
 }
 
-/** The `csv-parse` configuration shared by the sync and streaming tokenizers. */
-export const csvParseOptions = (options: TokenizeOptions) =>
-  ({
-    delimiter: options.delimiter ?? ',',
-    // DEGIRO rows occasionally vary in trailing-column count.
-    relax_column_count: true,
-    relax_quotes: true,
-    skip_empty_lines: true,
-    // Preserve values exactly (double spaces in product names, etc.).
-    trim: false,
-    bom: true,
-  }) as const;
+/** The `papaparse` configuration shared by the sync and streaming tokenizers. */
+export const papaParseOptions = (options: TokenizeOptions) => ({
+  delimiter: options.delimiter ?? ',',
+  header: false,
+  skipEmptyLines: true,
+  // papaparse strips a BOM from string input, but from a stream only when
+  // `header` is on -- without this the first header cell keeps its U+FEFF.
+  beforeFirstChunk: (chunk: string) => (chunk.charCodeAt(0) === 0xfeff ? chunk.slice(1) : chunk),
+});

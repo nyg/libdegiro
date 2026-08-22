@@ -39,6 +39,11 @@ describe('tokenizeCsv', () => {
     expect(rows.every((r) => r.length === 12)).toBe(true);
   });
 
+  it('strips a UTF-8 BOM from the first header cell', () => {
+    const rows = tokenizeCsv(`\uFEFF${fixture}`);
+    expect(rows[0]?.[0]).toBe('Date');
+  });
+
   it('preserves double spaces inside product names', () => {
     const rows = tokenizeCsv(fixture);
     const withDoubleSpace = rows.find((r) => r[3] === 'ISHARES SMI  MID ETF CHF DIS');
