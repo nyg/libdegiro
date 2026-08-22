@@ -1,12 +1,31 @@
-# libdegiro
+<h1 align="center">libdegiro</h1>
 
-> Parse DEGIRO broker **Account.csv** exports into a typed, extensible domain model.
+<p align="center">
+  Parse DEGIRO broker <strong>Account.csv</strong> exports into a typed, extensible domain model.
+</p>
 
-A modern, ESM-only TypeScript library that turns a DEGIRO account statement into
-strongly-typed **movements** and grouped **transactions**, with exact-decimal
-money, balance reconciliation, and portfolio roll-ups. Every stage of the
-pipeline is pluggable, so new locales, movement types and grouping rules are easy
-to add.
+<p align="center">
+  <a href="https://www.npmjs.com/package/libdegiro"><img src="https://img.shields.io/npm/v/libdegiro?logo=npm&logoColor=white&color=cb3837" alt="npm version"></a>
+  <a href="https://github.com/nyg/libdegiro/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/nyg/libdegiro/ci.yml?branch=master&logo=github&label=CI" alt="CI status"></a>
+  <a href="https://www.npmjs.com/package/libdegiro"><img src="https://img.shields.io/npm/types/libdegiro?logo=typescript&logoColor=white" alt="TypeScript types included"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/npm/l/libdegiro?color=blue" alt="MIT licence"></a>
+</p>
+
+<p align="center">
+  <strong><a href="https://nyg.github.io/libdegiro/">Live demo</a></strong>
+  ·
+  <a href="#install">Install</a>
+  ·
+  <a href="#quick-start">Quick start</a>
+  ·
+  <a href="#domain-model">Domain model</a>
+  ·
+  <a href="#extensibility">Extensibility</a>
+</p>
+
+---
+
+A modern, ESM-only TypeScript library that turns a DEGIRO account statement into strongly-typed **movements** and grouped **transactions**, with exact-decimal money, balance reconciliation, and portfolio roll-ups. Every stage of the pipeline is pluggable, so new locales, movement types and grouping rules are easy to add.
 
 - 🧮 **Exact money** with [`big.js`](https://github.com/MikeMcl/big.js) — no float drift
 - 🧩 **Extensible** dialects, classifiers and grouping strategies
