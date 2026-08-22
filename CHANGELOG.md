@@ -1,6 +1,16 @@
 # Changelog
 
 
+## [0.1.1](https://github.com/nyg/libdegiro/compare/v0.1.0..v0.1.1) - 2026-08-22
+
+### 📚 Documentation
+
+- [`3c1348c`](https://github.com/nyg/libdegiro/commit/3c1348c3ba2eafa34b7f86996436c7bcf36a79cb) Add badges and a centred README header ([#29](https://github.com/nyg/libdegiro/issues/29))
+
+### ⚙️ Miscellaneous
+
+- [`a1a194e`](https://github.com/nyg/libdegiro/commit/a1a194e69906a65dcc8a49be13dfd110d06ab7b5) Title GitHub releases with the bare tag name ([#28](https://github.com/nyg/libdegiro/issues/28))
+
 ## 0.1.0 - 2026-08-22
 
 ### ⛰️  Features
@@ -9,6 +19,7 @@
 
 ### 🐛 Bug Fixes
 
+- [`896ebee`](https://github.com/nyg/libdegiro/commit/896ebeec0c93166b648cec7c900205a553c21577) *(deps)* Update all stable non-major dependencies ([#27](https://github.com/nyg/libdegiro/issues/27))
 - [`ec88e1e`](https://github.com/nyg/libdegiro/commit/ec88e1e3c3786ae29d2c4fde28fe9aac20526e54) *(build)* Ship a browser build so the root entry runs in a browser ([#14](https://github.com/nyg/libdegiro/issues/14))
 - [`deb830a`](https://github.com/nyg/libdegiro/commit/deb830a17d12ad82f9c41b31856ee865f4f7c6dc) *(deps)* Pin dependencies ([#9](https://github.com/nyg/libdegiro/issues/9))
 
@@ -18,7 +29,7 @@
 
 ### ⚙️ Miscellaneous
 
-- [`557f617`](https://github.com/nyg/libdegiro/commit/557f6171965396c733f6503c311dcae377037b04) Add npm publish metadata and guard stale dist
+- [`732d9c5`](https://github.com/nyg/libdegiro/commit/732d9c590bcf87a3de784b020ebc45e681389b34) Prepare npmjs publishing and add release automation ([#26](https://github.com/nyg/libdegiro/issues/26))
 - [`5127034`](https://github.com/nyg/libdegiro/commit/51270340965a80d0fbb04cb2ab165c0d017601e7) *(deps)* Lock file maintenance ([#25](https://github.com/nyg/libdegiro/issues/25))
 - [`1c7f3e7`](https://github.com/nyg/libdegiro/commit/1c7f3e76ed4563dfdcc168e67693475f49e34c84) *(deps)* Lock file maintenance ([#24](https://github.com/nyg/libdegiro/issues/24))
 - [`096e092`](https://github.com/nyg/libdegiro/commit/096e092e34160988e64a070e0610f83b1f008fd5) *(deps)* Update dependency pnpm to v11.18.0 ([#23](https://github.com/nyg/libdegiro/issues/23))
