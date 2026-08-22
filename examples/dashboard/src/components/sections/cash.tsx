@@ -16,13 +16,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import {
-  formatAxisNumber,
-  formatDate,
-  formatDecimal,
-  formatMoney,
-  toChartNumber,
-} from '@/lib/format';
+import { formatAxisNumber, formatDate, formatDecimal, toChartNumber } from '@/lib/format';
 
 /** Past this many points, per-point dots read as noise rather than as data. */
 const DOT_LIMIT = 40;
@@ -55,8 +49,6 @@ export function CashSection() {
     [active],
   );
 
-  const closing = series[series.length - 1];
-
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -67,30 +59,20 @@ export function CashSection() {
             cash account cancel out within a timestamp and are shown net.
           </CardDescription>
         </div>
-        <div className="flex shrink-0 items-end justify-between gap-3 sm:flex-col sm:items-end">
-          {closing ? (
-            <div className="sm:text-right">
-              <div className="font-mono text-lg font-medium tabular-nums">
-                {formatMoney(closing.balance)}
-              </div>
-              <div className="text-muted-foreground text-xs">as of {formatDate(closing.date)}</div>
-            </div>
-          ) : null}
-          {currencies.length > 1 ? (
-            <Select value={active} onValueChange={setCurrency}>
-              <SelectTrigger className="w-28 shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {currencies.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-        </div>
+        {currencies.length > 1 ? (
+          <Select value={active} onValueChange={setCurrency}>
+            <SelectTrigger className="w-32 shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
