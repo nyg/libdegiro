@@ -11,12 +11,13 @@ const srcDir = fileURLToPath(new URL('../src', import.meta.url));
  * Third-party packages the root entry is allowed to import.
  *
  * This is a dependency-surface check, **not** a browser-safety check. An import
- * graph free of Node builtins proves very little on its own: `csv-parse/sync`
- * imports none, yet reaches for the `Buffer` global at module scope and so
- * throws on import in a browser. Browser safety is proven by actually running
- * the browser bundle without Node's globals — see the suite at the bottom.
+ * graph free of Node builtins proves very little on its own: a dependency can
+ * import none and still reach for `Buffer` at module scope, which is what made
+ * the previous CSV parser throw on import in a browser. Browser safety is proven
+ * by actually running the bundle without Node's globals — see the suite at the
+ * bottom.
  */
-const ALLOWED_DEPENDENCIES = ['big.js', 'csv-parse/sync'];
+const ALLOWED_DEPENDENCIES = ['big.js', 'papaparse'];
 
 const builtins = new Set(builtinModules);
 const isNodeBuiltin = (specifier: string): boolean =>
@@ -90,8 +91,28 @@ describe('the node entry point', () => {
   });
 });
 
-const browserBundle = resolve(srcDir, '../dist/index.browser.js');
+const rootBundle = resolve(srcDir, '../dist/index.js');
 const fixture = resolve(srcDir, '../test/fixtures/Account.csv');
+
+/** Bare specifiers left external by an emitted bundle and every chunk it pulls in. */
+function bundledSpecifiers(entry: string): Set<string> {
+  const visited = new Set<string>();
+  const bare = new Set<string>();
+  const queue = [entry];
+
+  while (queue.length > 0) {
+    const file = queue.pop()!;
+    if (visited.has(file)) continue;
+    visited.add(file);
+
+    for (const specifier of specifiersOf(readFileSync(file, 'utf8'))) {
+      if (specifier.startsWith('.')) queue.push(resolve(dirname(file), specifier));
+      else bare.add(specifier);
+    }
+  }
+
+  return bare;
+}
 
 /**
  * Run a snippet in a child process with Node's `Buffer` global removed, which is
@@ -103,7 +124,7 @@ function runWithoutBuffer(body: string): string {
     import { readFileSync } from 'node:fs';
     const csv = readFileSync(${JSON.stringify(fixture)}, 'utf8');
     delete globalThis.Buffer;
-    const lib = await import(${JSON.stringify(pathToFileURL(browserBundle).href)});
+    const lib = await import(${JSON.stringify(pathToFileURL(rootBundle).href)});
     ${body}
   `;
   return execFileSync(process.execPath, ['--input-type=module', '-e', script], {
@@ -112,16 +133,17 @@ function runWithoutBuffer(body: string): string {
   });
 }
 
-describe('the browser bundle', () => {
+describe('the root bundle', () => {
   it('is built by `pnpm build`', () => {
-    expect(existsSync(browserBundle)).toBe(true);
+    expect(existsSync(rootBundle)).toBe(true);
   });
 
-  it('imports the browser build of csv-parse, and keeps it external', () => {
-    const bare = specifiersOf(readFileSync(browserBundle, 'utf8')).filter(
-      (specifier) => !specifier.startsWith('.'),
-    );
-    expect(bare.sort()).toEqual(['big.js', 'csv-parse/browser/esm/sync']);
+  it('is the only bundle — there is no separate browser build', () => {
+    expect(existsSync(resolve(srcDir, '../dist/index.browser.js'))).toBe(false);
+  });
+
+  it('keeps its dependencies external and inside the allowlist', () => {
+    expect([...bundledSpecifiers(rootBundle)].sort()).toEqual([...ALLOWED_DEPENDENCIES].sort());
   });
 
   it('parses a statement with no Buffer global', () => {

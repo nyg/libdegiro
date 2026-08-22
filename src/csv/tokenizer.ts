@@ -1,5 +1,5 @@
-import { parse as parseSync } from 'csv-parse/sync';
-import { csvParseOptions, type TokenizeOptions } from './options';
+import Papa from 'papaparse';
+import { papaParseOptions, type TokenizeOptions } from './options';
 
 export type { TokenizeOptions } from './options';
 
@@ -11,5 +11,5 @@ export type CsvRow = string[];
  * quoted fields with embedded commas). The header row is returned as the first row.
  */
 export function tokenizeCsv(input: string, options: TokenizeOptions = {}): CsvRow[] {
-  return parseSync(input, csvParseOptions(options)) as CsvRow[];
+  return Papa.parse<CsvRow>(input, papaParseOptions(options)).data;
 }

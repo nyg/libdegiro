@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, createReadStream } from 'node:fs';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { parseDegiroCsv, frenchDialect, UnknownDialectError, DegiroError } from '../src/index';
 import { parseDegiroFile, parseDegiroFileSync, parseDegiroStream } from '../src/node';
@@ -61,5 +62,11 @@ describe('streaming', () => {
     expect(streamed.movements).toHaveLength(sync.movements.length);
     expect(streamed.transactions).toHaveLength(sync.transactions.length);
     expect(streamed.dialect.id).toBe('fr');
+  });
+
+  it('detects the dialect through a UTF-8 BOM', async () => {
+    const streamed = await parseDegiroStream(Readable.from([`\uFEFF${fixture}`]));
+    expect(streamed.dialect.id).toBe('fr');
+    expect(streamed.records).toHaveLength(236);
   });
 });
