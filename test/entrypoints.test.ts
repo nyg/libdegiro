@@ -117,6 +117,13 @@ describe('the browser bundle', () => {
     expect(existsSync(browserBundle)).toBe(true);
   });
 
+  it('imports the browser build of csv-parse, and keeps it external', () => {
+    const bare = specifiersOf(readFileSync(browserBundle, 'utf8')).filter(
+      (specifier) => !specifier.startsWith('.'),
+    );
+    expect(bare.sort()).toEqual(['big.js', 'csv-parse/browser/esm/sync']);
+  });
+
   it('parses a statement with no Buffer global', () => {
     const out = runWithoutBuffer(`
       const result = lib.parseDegiroCsv(csv);

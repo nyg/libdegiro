@@ -10,6 +10,15 @@ const shared = {
   clean: false,
 } satisfies UserConfig;
 
+const csvParseBrowser = {
+  name: 'csv-parse-browser',
+  resolveId(id: string) {
+    if (id === 'csv-parse/sync') {
+      return { id: 'csv-parse/browser/esm/sync', external: true };
+    }
+  },
+};
+
 export default defineConfig([
   {
     ...shared,
@@ -22,16 +31,8 @@ export default defineConfig([
     entry: { 'index.browser': 'src/index.ts' },
     platform: 'browser',
     dts: false,
-    deps: { alwaysBundle: [/^csv-parse\/sync$/] },
-    plugins: [
-      {
-        name: 'csv-parse-browser',
-        resolveId(id) {
-          if (id === 'csv-parse/sync') {
-            return { id: 'csv-parse/browser/esm/sync', external: true };
-          }
-        },
-      },
-    ],
+    inputOptions(options) {
+      options.plugins = [csvParseBrowser, options.plugins];
+    },
   },
 ]);
