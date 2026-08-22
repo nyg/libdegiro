@@ -6,6 +6,7 @@ import {
   summarizePortfolio,
   computeRealizedPnl,
   computePositions,
+  cashByCurrency,
   sumByCurrency,
   Money,
 } from '../src/index';
@@ -53,6 +54,34 @@ describe('FIFO realized P/L (single currency)', () => {
     expect(positions[0]?.quantity).toBe(5);
     expect(positions[0]?.bought).toBe(20);
     expect(positions[0]?.sold).toBe(15);
+  });
+});
+
+const sweepPair = (mirrorFirst: boolean) => {
+  const sweep =
+    '01-02-2025,12:20,01-02-2025,,,Degiro Cash Sweep Transfer,,CHF,"3601,90",CHF,"32581,78",';
+  const mirror =
+    '01-02-2025,12:20,01-02-2025,,,"Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 3 601,9 CHF",,,,CHF,"28979,88",';
+  return [
+    HEADER,
+    ...(mirrorFirst ? [mirror, sweep] : [sweep, mirror]),
+    '01-02-2025,12:10,01-02-2025,TEST,TEST00000001,"Achat 10 TEST@100 CHF (TEST00000001)",,CHF,"-1000,00",CHF,"28979,88",o1',
+    '',
+  ].join('\n');
+};
+
+describe('cashByCurrency across a cash-sweep pair', () => {
+  // A sweep and its `Virement` mirror are two entries in one running balance and
+  // they cancel out. DEGIRO emits them in either order under a shared timestamp,
+  // so the balance that actually stood is whichever of the two is newest.
+  it('takes the mirror when the mirror is the newest row', () => {
+    const { movements } = parseDegiroCsv(sweepPair(true));
+    expect(cashByCurrency(movements).map((m) => m.amount.toFixed(2))).toEqual(['28979.88']);
+  });
+
+  it('takes the sweep when the sweep is the newest row', () => {
+    const { movements } = parseDegiroCsv(sweepPair(false));
+    expect(cashByCurrency(movements).map((m) => m.amount.toFixed(2))).toEqual(['32581.78']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { balanceSeries } from '@/lib/analytics';
+import { dailyBalanceSeries } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -16,34 +16,47 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { formatDate, toChartNumber } from '@/lib/format';
+import { formatAxisNumber, formatDate, formatDecimal, toChartNumber } from '@/lib/format';
 
-const config = { balance: { label: 'Balance', color: 'var(--chart-2)' } } satisfies ChartConfig;
+/** Past this many points, per-point dots read as noise rather than as data. */
+const DOT_LIMIT = 40;
 
 export function CashSection() {
   const { result, currencies } = useAnalytics();
   const [currency, setCurrency] = useState(() => currencies[0] ?? 'EUR');
   const active = currencies.includes(currency) ? currency : (currencies[0] ?? 'EUR');
 
+  const series = useMemo(
+    () => dailyBalanceSeries(result.movements, active),
+    [result.movements, active],
+  );
+
   const data = useMemo(
     () =>
-      balanceSeries(result.movements, active).map((point) => ({
+      series.map((point) => ({
         // A numeric time axis, not a category one: a category axis gives a busy
         // trading day the same width as a quiet month.
         t: point.date.getTime(),
         balance: toChartNumber(point.balance),
       })),
-    [result.movements, active],
+    [series],
+  );
+
+  // The tooltip names the series, so the currency belongs there rather than
+  // repeated on every y tick.
+  const config = useMemo(
+    () => ({ balance: { label: active, color: 'var(--chart-2)' } }) satisfies ChartConfig,
+    [active],
   );
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
           <CardTitle className="text-base">Cash balance over time</CardTitle>
           <CardDescription>
-            The trading account only. Transfers to the flatexDEGIRO cash account are a separate
-            balance and are excluded.
+            Each point is the balance at the end of that day. Sweeps to and from the flatexDEGIRO
+            cash account cancel out within a timestamp and are shown net.
           </CardDescription>
         </div>
         {currencies.length > 1 ? (
@@ -84,8 +97,8 @@ export function CashSection() {
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                width={72}
-                tickFormatter={(value: number) => `${Math.round(value)} ${active}`}
+                width={64}
+                tickFormatter={formatAxisNumber}
               />
               <ChartTooltip
                 content={
@@ -95,6 +108,9 @@ export function CashSection() {
                       const point = payload[0]?.payload as { t: number } | undefined;
                       return point ? formatDate(new Date(point.t)) : '';
                     }}
+                    valueFormatter={(value) =>
+                      typeof value === 'number' ? formatDecimal(value) : String(value)
+                    }
                   />
                 }
               />
@@ -105,7 +121,8 @@ export function CashSection() {
                 fill="var(--color-balance)"
                 fillOpacity={0.15}
                 strokeWidth={2}
-                dot={false}
+                dot={data.length <= DOT_LIMIT ? { r: 2 } : false}
+                activeDot={{ r: 4 }}
               />
             </AreaChart>
           </ChartContainer>

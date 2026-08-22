@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { cashByCurrency, parseDegiroCsv } from 'libdegiro';
 import { parseExchange } from '@/lib/analytics/exchange';
-import { balanceCurrencies, balanceSeries, statementRange } from '@/lib/analytics/timeseries';
+import {
+  balanceCurrencies,
+  balanceSeries,
+  dailyBalanceSeries,
+  statementRange,
+} from '@/lib/analytics/timeseries';
 import { dividendsByInstrument, incomeByYear } from '@/lib/analytics/income';
 import { buildAnalytics } from '@/lib/analytics';
 
@@ -74,19 +79,91 @@ describe('balanceSeries', () => {
     expect(result.movements.map((m) => m.record.line)).toEqual(before);
   });
 
-  it('excludes the flatex cash-account mirror rows', () => {
-    const series = balanceSeries(result.movements, 'EUR');
-    const transferDates = result.movements
-      .filter((m) => m.kind === 'cashTransfer')
-      .map((m) => m.record.bookingDate.getTime());
-    // A transfer row's balance belongs to a different account; if one leaked in,
-    // the series would disagree with cashByCurrency (covered above), but check
-    // the count directly too.
-    expect(series.length).toBeLessThan(result.movements.length - transferDates.length + 1);
+  it('shows a cash-sweep pair net, not mid-pair', () => {
+    // A sweep and its `Virement` mirror cancel out and share a timestamp, so the
+    // pair contributes one point at the balance that actually stood — never the
+    // intermediate one, which is off by the swept amount.
+    const header =
+      'Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre';
+    const rows = [
+      '01-02-2025,12:20,01-02-2025,,,"Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 3 601,9 CHF",,,,CHF,"28979,88",',
+      '01-02-2025,12:20,01-02-2025,,,Degiro Cash Sweep Transfer,,CHF,"3601,90",CHF,"32581,78",',
+      '01-02-2025,12:10,01-02-2025,TEST,TEST00000001,"Achat 10 TEST@100 CHF (TEST00000001)",,CHF,"-1000,00",CHF,"28979,88",o1',
+    ];
+    const paired = parseDegiroCsv([header, ...rows, ''].join('\n'));
+    const series = balanceSeries(paired.movements, 'CHF');
+
+    expect(series.map((point) => point.balance.amount.toFixed(2))).toEqual([
+      '28979.88',
+      '28979.88',
+    ]);
+    expect(series.map((point) => point.balance.amount.toFixed(2))).not.toContain('32581.78');
   });
 
   it('reports only currencies that actually have balances', () => {
     expect(balanceCurrencies(result.movements)).toEqual(['CHF', 'EUR', 'USD']);
+  });
+});
+
+describe('dailyBalanceSeries', () => {
+  it('keeps one point per day, at that day’s closing balance', () => {
+    for (const currency of balanceCurrencies(result.movements)) {
+      const daily = dailyBalanceSeries(result.movements, currency);
+      const days = daily.map((point) => point.date.toISOString().slice(0, 10));
+      expect(new Set(days).size).toBe(days.length);
+
+      const raw = balanceSeries(result.movements, currency);
+      for (const point of daily) {
+        const sameDay = raw.filter(
+          (candidate) =>
+            candidate.date.toISOString().slice(0, 10) === point.date.toISOString().slice(0, 10),
+        );
+        expect(sameDay[sameDay.length - 1]!.balance.amount.toFixed(2)).toBe(
+          point.balance.amount.toFixed(2),
+        );
+      }
+    }
+  });
+
+  it('ends on the same balance as the raw series', () => {
+    for (const currency of balanceCurrencies(result.movements)) {
+      const raw = balanceSeries(result.movements, currency);
+      const daily = dailyBalanceSeries(result.movements, currency);
+      expect(daily[daily.length - 1]!.balance.amount.toFixed(2)).toBe(
+        raw[raw.length - 1]!.balance.amount.toFixed(2),
+      );
+    }
+  });
+
+  it('collapses a whole trading session into one point', () => {
+    // Six rows inside one hour: on a multi-year axis these overlap to the pixel,
+    // and each one would claim the same date in the tooltip.
+    const header =
+      'Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre';
+    const session = [
+      '22-07-2026,09:12,22-07-2026,TEST,TEST00000001,"Achat 1 TEST@100 CHF (TEST00000001)",,CHF,"-100,00",CHF,"800,00",o3',
+      '22-07-2026,09:10,22-07-2026,TEST,TEST00000001,"Achat 1 TEST@100 CHF (TEST00000001)",,CHF,"-100,00",CHF,"900,00",o2',
+      '22-07-2026,09:07,22-07-2026,TEST,TEST00000001,"Achat 1 TEST@100 CHF (TEST00000001)",,CHF,"-100,00",CHF,"1000,00",o1',
+      '21-07-2026,09:00,21-07-2026,,,Versement de fonds,,CHF,"1100,00",CHF,"1100,00",',
+    ];
+    const parsed = parseDegiroCsv([header, ...session, ''].join('\n'));
+
+    expect(balanceSeries(parsed.movements, 'CHF')).toHaveLength(4);
+    expect(
+      dailyBalanceSeries(parsed.movements, 'CHF').map((point) => [
+        point.date.toISOString().slice(0, 10),
+        point.balance.amount.toFixed(2),
+      ]),
+    ).toEqual([
+      ['2026-07-21', '1100.00'],
+      ['2026-07-22', '800.00'],
+    ]);
+  });
+
+  it('does not mutate the caller’s array', () => {
+    const before = result.movements.map((m) => m.record.line);
+    dailyBalanceSeries(result.movements, 'CHF');
+    expect(result.movements.map((m) => m.record.line)).toEqual(before);
   });
 });
 

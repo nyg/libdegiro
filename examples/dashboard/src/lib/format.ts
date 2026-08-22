@@ -88,6 +88,22 @@ export function formatMoneyAbs(money: Money): string {
   return currencyFormatter(money.currency).format(Math.abs(Number(money.amount.toFixed(2))));
 }
 
+const axisNumberFormat = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+
+/** Grouped, unit-less, for chart axes where the currency is stated elsewhere. */
+export const formatAxisNumber = (value: number): string => axisNumberFormat.format(value);
+
+const decimalFormat = new Intl.NumberFormat('en-GB', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * A money amount without its currency, for readouts that name the currency
+ * separately. Both decimals always show, so figures stay column-aligned.
+ */
+export const formatDecimal = (value: number): string => decimalFormat.format(value);
+
 export function formatQuantity(quantity: number): string {
   return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 4 }).format(quantity);
 }

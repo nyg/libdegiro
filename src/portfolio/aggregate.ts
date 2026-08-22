@@ -152,15 +152,22 @@ export function computeRealizedPnl(movements: readonly Movement[]): RealizedPnl[
 }
 
 /**
- * Latest DEGIRO (trading) account balance per currency. Cash-transfer mirror
- * rows (which report the separate flatexDEGIRO cash account) are ignored.
+ * Latest account balance per currency, taken from the newest row that reports
+ * one.
+ *
+ * `Solde` is a single running balance, not one per account: a sweep and its
+ * `Virement` mirror are two entries in that one stream and they cancel out.
+ * Skipping either kind lands mid-pair on a balance that never stood, off by the
+ * swept amount. {@link reconcileBalances} treats the stream the same way.
+ *
+ * Which kind ends the pair is not fixed — DEGIRO emits them in either order
+ * under a shared timestamp — so the newest row wins regardless of kind.
  *
  * Assumes `movements` are newest-first, as produced by the parser.
  */
 export function cashByCurrency(movements: readonly Movement[]): Money[] {
   const latest = new Map<string, Money>();
   for (const movement of movements) {
-    if (movement.kind === 'cashTransfer') continue;
     const balance = movement.record.balance;
     if (!balance || latest.has(balance.currency)) continue;
     latest.set(balance.currency, balance);
