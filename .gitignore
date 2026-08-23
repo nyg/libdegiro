@@ -9,3 +9,4 @@ coverage/
 *.log
 *.csv
 !test/fixtures/Account.csv
+!test/fixtures/Account-en.csv

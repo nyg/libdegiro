@@ -3,6 +3,7 @@ import type { BalanceDiscrepancy } from 'libdegiro';
 import { CheckCircle2, Copy, Info, TriangleAlert } from 'lucide-react';
 import {
   describeHealthNotes,
+  plural,
   describeHealthProblems,
   diagnosticsText,
   explainDiscrepancy,
@@ -109,9 +110,9 @@ export function HealthSection() {
         </AlertTitle>
         <AlertDescription className="flex flex-col gap-2">
           <span>
-            Parsed {health.rows} rows using the {result.dialect.id} dialect. {health.errors.length}{' '}
-            errors, {health.warnings.length} warnings, {health.unknown.length} unrecognised
-            descriptions.
+            Parsed {plural(health.rows, 'row')} using the {result.dialect.id} dialect.{' '}
+            {plural(health.errors.length, 'error')}, {plural(health.warnings.length, 'warning')},{' '}
+            {plural(health.unknown.length, 'unrecognised description')}.
           </span>
           {problems.length > 0 ? (
             <ul className="list-disc space-y-1 pl-4">

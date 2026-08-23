@@ -47,6 +47,7 @@ export interface Dialect {
   readonly label: string;
   /** Column index mapping for rows of this dialect. */
   readonly columns: ColumnMap;
+  readonly heuristic?: boolean;
   /** Returns `true` if this dialect recognises the given header row. */
   matches(header: CsvRow): boolean;
   /**

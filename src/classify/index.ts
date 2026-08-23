@@ -6,6 +6,7 @@ export { fxTradeMatcher, fxConversionMatcher } from './matchers/fx';
 export { dividendMatcher, dividendTaxMatcher, capitalReturnMatcher } from './matchers/dividend';
 export { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees';
 export { interestMatcher } from './matchers/interest';
+export { structuralFxTradeMatcher, structuralTradeMatcher } from './matchers/structural';
 export {
   cashSweepMatcher,
   depositMatcher,

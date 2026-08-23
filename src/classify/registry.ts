@@ -6,6 +6,7 @@ import { fxTradeMatcher, fxConversionMatcher } from './matchers/fx';
 import { dividendMatcher, dividendTaxMatcher, capitalReturnMatcher } from './matchers/dividend';
 import { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees';
 import { interestMatcher } from './matchers/interest';
+import { structuralFxTradeMatcher, structuralTradeMatcher } from './matchers/structural';
 import {
   cashSweepMatcher,
   depositMatcher,
@@ -80,10 +81,12 @@ export const defaultMatchers: readonly Matcher[] = [
   brokerageFeeMatcher,
   connectivityFeeMatcher,
   interestMatcher,
-  depositMatcher,
-  withdrawalMatcher,
   cashSweepMatcher,
   cashTransferMatcher,
+  depositMatcher,
+  withdrawalMatcher,
+  structuralFxTradeMatcher,
+  structuralTradeMatcher,
 ];
 
 /** Create a registry pre-populated with all built-in matchers. */

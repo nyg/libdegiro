@@ -5,6 +5,7 @@ import { DegiroError, type ParseIssue } from '../errors';
 import type { Dialect } from '../dialects/types';
 import {
   assembleResult,
+  dialectIssues,
   resolveDialectRegistry,
   type ParseOptions,
   type ParseResult,
@@ -37,6 +38,7 @@ export async function parseDegiroStream(
     if (header === null) {
       header = row;
       if (dialect === null) dialect = registry.detect(header);
+      issues.push(...dialectIssues(dialect, header));
       continue;
     }
     const result = mapRow(row, dialect!, line);

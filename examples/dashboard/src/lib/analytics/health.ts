@@ -26,6 +26,8 @@ export interface HealthReport {
   readonly unparseableExchanges: number;
   readonly reconciliation: ReconciliationReport;
   readonly range: DateRange | null;
+  /** `true` when the header matched no language and the layout fallback read the file. */
+  readonly heuristicDialect: boolean;
   readonly ok: boolean;
 }
 
@@ -54,6 +56,7 @@ export function buildHealthReport(result: ParseResult, unparseableExchanges: num
     unparseableExchanges,
     reconciliation,
     range: statementRange(result.movements),
+    heuristicDialect: result.dialect.heuristic === true,
     ok:
       result.errors.length === 0 &&
       unknown.length === 0 &&
@@ -62,7 +65,8 @@ export function buildHealthReport(result: ParseResult, unparseableExchanges: num
   };
 }
 
-const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
+export const plural = (count: number, noun: string): string =>
+  `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 /**
  * Why `ok` is false, in the user's terms.
@@ -107,11 +111,22 @@ export function describeHealthProblems(report: HealthReport): string[] {
  * ignore the panel; hiding it entirely leaves a real number unexplained.
  */
 export function describeHealthNotes(report: HealthReport): string[] {
+  const notes: string[] = [];
+
+  if (report.heuristicDialect) {
+    notes.push(
+      'No dialect recognised this header, so the file was read by its column layout alone and its dates and amounts were interpreted by guesswork. Dates, amounts and balances above are worth a spot-check against the statement.',
+    );
+  }
+
   const rounding = report.reconciliation.rounding.length;
-  if (rounding === 0) return [];
-  return [
-    `${plural(rounding, 'balance transition')} ${rounding === 1 ? 'is' : 'are'} off by less than one centime. DEGIRO rounds a half-unit price down in its amount column and up in its balance column, so the statement disagrees with itself. Nothing here is a parsing error.`,
-  ];
+  if (rounding > 0) {
+    notes.push(
+      `${plural(rounding, 'balance transition')} ${rounding === 1 ? 'is' : 'are'} off by less than one centime. DEGIRO rounds a half-unit price down in its amount column and up in its balance column, so the statement disagrees with itself. Nothing here is a parsing error.`,
+    );
+  }
+
+  return notes;
 }
 
 /** The one-sentence reading of a discrepancy: what it means and what to do. */

@@ -2,8 +2,8 @@ import type { Matcher } from '../types';
 import { parseCashTransferDescription } from '../descriptions';
 
 const CASH_SWEEP = /^degiro cash sweep transfer/i;
-const DEPOSIT = /^versement de fonds/i;
-const WITHDRAWAL = /^retrait de fonds/i;
+const DEPOSIT = /^(?:versement de fonds|(?:processed\s+)?(?:flatex\s+)?deposit)\b/i;
+const WITHDRAWAL = /^(?:retrait de fonds|(?:processed\s+)?(?:flatex\s+)?withdrawal)\b/i;
 
 /** Matches a cash sweep between the DEGIRO account and the cash account. */
 export const cashSweepMatcher: Matcher = {
