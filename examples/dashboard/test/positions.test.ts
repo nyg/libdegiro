@@ -146,6 +146,28 @@ describe('describeHealthProblems', () => {
     expect(describeHealthNotes(report)[0]).toContain('1 balance transition is off');
   });
 
+  it('warns when the layout fallback read the file, ahead of any rounding note', () => {
+    const dutchCsv = [
+      'Datum,Tijd,Valutadatum,Product,ISIN,Omschrijving,FX,Mutatie,,Saldo,,Order Id',
+      '18-11-2024,00:00,18-11-2024,,,Storting,,CHF,"9.000,00",CHF,"9.000,00",',
+      '',
+    ].join('\n');
+    const parsed = parseDegiroCsv(dutchCsv);
+    const report = withDiscrepancies(buildHealthReport(parsed, 0), [
+      discrepancy('rounding', '-0.01'),
+    ]);
+
+    expect(report.heuristicDialect).toBe(true);
+    const notes = describeHealthNotes(report);
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toContain('read by its column layout alone');
+    expect(notes[1]).toContain('1 balance transition is off');
+  });
+
+  it('says nothing about the dialect when the header was recognised', () => {
+    expect(buildHealthReport(result, 0).heuristicDialect).toBe(false);
+  });
+
   it('explains a half-centime rounding from the row that caused it', () => {
     const entry = discrepancy('rounding', '-0.01', {
       statedMutation: new Money('-1528.28', 'CHF'),

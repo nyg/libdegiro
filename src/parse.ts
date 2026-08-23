@@ -1,14 +1,28 @@
-import { tokenizeCsv } from './csv/tokenizer';
+import { tokenizeCsv, type CsvRow } from './csv/tokenizer';
 import { mapRow, type RawRecord } from './records/rawRecord';
 import { DegiroError, type ParseIssue } from './errors';
 import {
   assembleResult,
+  dialectIssues,
   resolveDialectRegistry,
   type ParseOptions,
   type ParseResult,
 } from './internal';
 
 export type { ParseOptions, ParseResult } from './internal';
+
+const FALLBACK_DELIMITERS = [';', '\t'] as const;
+
+function tokenizeRows(input: string, options: ParseOptions): CsvRow[] {
+  const rows = tokenizeCsv(input, { delimiter: options.delimiter });
+  if (options.delimiter !== undefined || (rows[0]?.length ?? 0) > 1) return rows;
+
+  for (const delimiter of FALLBACK_DELIMITERS) {
+    const retried = tokenizeCsv(input, { delimiter });
+    if ((retried[0]?.length ?? 0) > 1) return retried;
+  }
+  return rows;
+}
 
 /**
  * Parse the text of a DEGIRO `Account.csv` export into a typed result.
@@ -21,7 +35,7 @@ export type { ParseOptions, ParseResult } from './internal';
  * @throws {UnknownDialectError} when no dialect recognises the header.
  */
 export function parseDegiroCsv(input: string, options: ParseOptions = {}): ParseResult {
-  const rows = tokenizeCsv(input, { delimiter: options.delimiter });
+  const rows = tokenizeRows(input, options);
   if (rows.length === 0) {
     throw new DegiroError('Cannot parse an empty CSV input');
   }
@@ -30,7 +44,7 @@ export function parseDegiroCsv(input: string, options: ParseOptions = {}): Parse
   const dialect = options.dialect ?? resolveDialectRegistry(options.dialects).detect(header);
 
   const records: RawRecord[] = [];
-  const issues: ParseIssue[] = [];
+  const issues: ParseIssue[] = [...dialectIssues(dialect, header)];
   for (let i = 1; i < rows.length; i++) {
     const result = mapRow(rows[i]!, dialect, i + 1);
     issues.push(...result.issues);

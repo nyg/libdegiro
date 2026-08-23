@@ -6,7 +6,7 @@ import { defaultGroupingStrategies, groupMovements } from './group/grouper';
 import type { GroupingStrategy } from './group/grouper';
 import type { Transaction } from './group/transaction';
 import type { Movement } from './classify/types';
-import type { ParseIssue } from './errors';
+import { createIssue, type ParseIssue } from './errors';
 
 /** Options shared by every parsing entry point. */
 export interface ParseOptions {
@@ -51,6 +51,18 @@ export function resolveDialectRegistry(dialects: ParseOptions['dialects']): Dial
   if (dialects === undefined) return defaultDialects;
   if (dialects instanceof DialectRegistry) return dialects;
   return new DialectRegistry(dialects);
+}
+
+export function dialectIssues(dialect: Dialect, header: readonly string[]): ParseIssue[] {
+  if (!dialect.heuristic) return [];
+  return [
+    createIssue(
+      'warning',
+      'map',
+      `No dialect recognised this header, so the "${dialect.id}" fallback read the file by its column layout alone; amounts and dates were interpreted heuristically`,
+      { line: 1, raw: [...header] },
+    ),
+  ];
 }
 
 /** Classify + group already-mapped records into a {@link ParseResult}. */

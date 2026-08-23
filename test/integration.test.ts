@@ -9,6 +9,7 @@ import {
   parseFrenchDateTime,
   ClassifierRegistry,
   Money,
+  UnknownDialectError,
   type Dialect,
   type Matcher,
 } from '../src/index';
@@ -148,6 +149,83 @@ describe('an English export written in English, with US number formatting', () =
       expect(fx.quantity).toBe(1900);
       expect(fx.rate?.toString()).toBe('0.9412 CHF');
     }
+  });
+});
+
+describe('an export in a language no dialect knows', () => {
+  const dutchCsv = [
+    'Datum,Tijd,Valutadatum,Product,ISIN,Omschrijving,FX,Mutatie,,Saldo,,Order Id',
+    '20-11-2024,09:01,20-11-2024,SMI ETF,CH0019852802,"Koop 1.060 SMI ETF@106,02 CHF (CH0019852802)",,CHF,"-112.381,20",CHF,"7.939,80",o1',
+    '20-11-2024,09:01,20-11-2024,SMI ETF,CH0019852802,"Verkoop 10 SMI ETF@106,02 CHF (CH0019852802)",,CHF,"1.060,20",CHF,"9.000,00",o2',
+    '19-11-2024,00:00,19-11-2024,,,"Valuta Creditering","1,0888",CHF,"500,00",CHF,"500,00",o3',
+    '18-11-2024,00:00,18-11-2024,,,Storting,,CHF,"9.000,00",CHF,"9.000,00",',
+    '17-11-2024,00:00,17-11-2024,,,"Valutatransactie afwikkeling: Verkoop 1.900 EUR/CHF@0,9412 CHF ()",,EUR,"-1.900,00",EUR,"0,00",o4',
+    '',
+  ].join('\n');
+
+  const result = parseDegiroCsv(dutchCsv);
+
+  it('falls back to the positional layout and reads every row', () => {
+    expect(result.dialect.id).toBe('generic');
+    expect(result.errors).toHaveLength(0);
+    expect(result.records).toHaveLength(5);
+    expect(result.records[0]?.bookingDate.toISOString()).toBe('2024-11-20T09:01:00.000Z');
+    expect(result.records[0]?.mutation?.toString()).toBe('-112381.2 CHF');
+    expect(result.records[3]?.balance?.toString()).toBe('9000 CHF');
+  });
+
+  it('warns that the file was read by layout rather than by language', () => {
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]?.message).toMatch(/column layout/);
+    expect(result.warnings[0]?.line).toBe(1);
+  });
+
+  it('recovers trades from the shape of the description alone', () => {
+    const buy = result.movements[0];
+    expect(buy?.kind).toBe('buy');
+    if (buy?.kind === 'buy') {
+      expect(buy.quantity).toBe(1060);
+      expect(buy.unitPrice?.toString()).toBe('106.02 CHF');
+      expect(buy.isin).toBe('CH0019852802');
+    }
+
+    // Same Dutch verb shape, opposite mutation sign.
+    expect(result.movements[1]?.kind).toBe('sell');
+  });
+
+  it('recovers an FX pair trade and its settlement leg', () => {
+    const fx = result.movements[4];
+    expect(fx?.kind).toBe('fxTrade');
+    if (fx?.kind === 'fxTrade') {
+      expect(fx.pair).toBe('EUR/CHF');
+      expect(fx.quantity).toBe(1900);
+      expect(fx.rate?.toString()).toBe('0.9412 CHF');
+      expect(fx.settlement).toBe(true);
+    }
+  });
+
+  it('leaves descriptions it cannot read as unknown, never dropping the row', () => {
+    expect(result.movements[3]?.kind).toBe('unknown');
+    expect(result.movements[3]?.amount?.toString()).toBe('9000 CHF');
+  });
+});
+
+describe('a semicolon-delimited export', () => {
+  const csv = [
+    'Datum;Tijd;Valutadatum;Product;ISIN;Omschrijving;FX;Mutatie;;Saldo;;Order Id',
+    '18-11-2024;00:00;18-11-2024;;;Storting;;CHF;"9.000,00";CHF;"9.000,00";',
+    '',
+  ].join('\n');
+
+  it('retries the delimiter when the header tokenizes to one cell', () => {
+    const result = parseDegiroCsv(csv);
+    expect(result.dialect.id).toBe('generic');
+    expect(result.records).toHaveLength(1);
+    expect(result.records[0]?.balance?.toString()).toBe('9000 CHF');
+  });
+
+  it('does not second-guess an explicit delimiter', () => {
+    expect(() => parseDegiroCsv(csv, { delimiter: ',' })).toThrow(UnknownDialectError);
   });
 });
 

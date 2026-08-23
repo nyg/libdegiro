@@ -3,6 +3,7 @@ import { UnknownDialectError } from '../errors';
 import type { Dialect } from './types';
 import { frenchDialect } from './fr';
 import { englishDialect } from './en';
+import { genericDialect } from './generic';
 
 /** Options for registering a dialect. */
 export interface RegisterDialectOptions {
@@ -63,7 +64,7 @@ export class DialectRegistry {
 
 /** Registry pre-populated with all built-in dialects. */
 export function createDefaultDialectRegistry(): DialectRegistry {
-  return new DialectRegistry([frenchDialect, englishDialect]);
+  return new DialectRegistry([frenchDialect, englishDialect, genericDialect]);
 }
 
 /** Shared registry containing the built-in dialects. */

@@ -33,9 +33,9 @@ Run `pnpm lint && pnpm typecheck && pnpm test` before proposing a change; that i
 ```
 src/
   csv/         tokenizer (papaparse) + Node row stream + shared options
-  dialects/    Dialect interface, French and English dialects, DialectRegistry
+  dialects/    Dialect interface, French/English/layout-fallback dialects, DialectRegistry
   records/     RawRecord — a normalised, dialect-agnostic row
-  classify/    Matcher registry + matchers (trade, fx, dividend, fees, interest, cash)
+  classify/    Matcher registry + matchers (trade, fx, dividend, fees, interest, cash, structural)
   group/       GroupingStrategy pipeline + Transaction union
   validate/    per-currency balance reconciliation
   portfolio/   positions, FIFO realized P/L, cash and fee roll-ups
@@ -53,6 +53,8 @@ examples/dashboard/
 ```
 
 The pipeline is `tokenizeCsv` → `mapRow` (dialect) → `ClassifierRegistry.classify` → `groupMovements` (strategy list) → optional `reconcileBalances` / `summarizePortfolio`. Every stage is swappable through `ParseOptions`; adding a locale, a description or a grouping rule should mean registering something, never editing a `switch`.
+
+Header language, number format and description language are three independent axes of a DEGIRO export — changing the interface language rewrites line 1 and nothing else. Keep them independent in code: dialects own the header and the number/date formats, matchers own the wording, and neither may assume the other. `genericDialect` closes the set by matching the column layout alone; anything heuristic sets `heuristic: true` so `ParseResult.warnings` can say so.
 
 ## Rules that are load-bearing
 

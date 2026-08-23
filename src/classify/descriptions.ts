@@ -9,6 +9,7 @@ const PRICE_TAIL = /^(.+?)\s+([A-Za-z]{3})\s+\(([^)]*)\)\s*$/;
 /** `Achat|Vente|Buy|Sell <rest>@<priceTail>` */
 const TRADE = /^(Achat|Vente|Buy|Sell)\s+(.+?)@(.+)$/i;
 const BUY_SIDE = /^(achat|buy)$/i;
+const UNLABELLED_TRADE = /^([^0-9]*?)([0-9].*?)@(.+)$/;
 /** Settlement prefix on FX trade rows. */
 const FX_SETTLEMENT_PREFIX =
   /^(?:R[èe]glement transaction devise|(?:Currency|FX)\s+(?:transaction\s+)?settlement)\s*:\s*/i;
@@ -36,19 +37,13 @@ export interface ParsedTrade {
   readonly isin: string | null;
 }
 
-/**
- * Parse a trade description such as
- * `"Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)"`.
- * Returns `null` when the text is not a trade.
- */
-export function parseTradeDescription(description: string, dialect: Dialect): ParsedTrade | null {
-  const trade = TRADE.exec(description.trim());
-  if (!trade) return null;
+export type ParsedTradeShape = Omit<ParsedTrade, 'side'>;
 
-  const side = BUY_SIDE.test(trade[1] ?? '') ? 'buy' : 'sell';
-  const qtyAndProduct = trade[2] ?? '';
-  const priceTail = trade[3] ?? '';
-
+function parseTradeBody(
+  qtyAndProduct: string,
+  priceTail: string,
+  dialect: Dialect,
+): ParsedTradeShape {
   const qtyMatch = LEADING_QTY.exec(qtyAndProduct);
   const quantity = qtyMatch
     ? parseQuantity((qtyMatch[1] ?? '').replace(QTY_GROUPING, ''), dialect)
@@ -67,7 +62,37 @@ export function parseTradeDescription(description: string, dialect: Dialect): Pa
     isin = (priceMatch[3] ?? '').trim() || null;
   }
 
-  return { side, quantity, product, unitPrice, isin };
+  return { quantity, product, unitPrice, isin };
+}
+
+/**
+ * Parse a trade description such as
+ * `"Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)"`.
+ * Returns `null` when the text is not a trade.
+ */
+export function parseTradeDescription(description: string, dialect: Dialect): ParsedTrade | null {
+  const trade = TRADE.exec(description.trim());
+  if (!trade) return null;
+
+  const side = BUY_SIDE.test(trade[1] ?? '') ? 'buy' : 'sell';
+  return { side, ...parseTradeBody(trade[2] ?? '', trade[3] ?? '', dialect) };
+}
+
+export interface ParsedUnlabelledTrade extends ParsedTradeShape {
+  readonly prefix: string;
+}
+
+export function parseUnlabelledTradeDescription(
+  description: string,
+  dialect: Dialect,
+): ParsedUnlabelledTrade | null {
+  const trade = UNLABELLED_TRADE.exec(description.trim());
+  if (!trade) return null;
+
+  return {
+    prefix: (trade[1] ?? '').trim(),
+    ...parseTradeBody(trade[2] ?? '', trade[3] ?? '', dialect),
+  };
 }
 
 /** Structured result of parsing a currency-pair (FX) trade description. */
