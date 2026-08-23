@@ -3,7 +3,7 @@ import { parseFxTradeDescription } from '../descriptions';
 
 /** `Opération de change - Crédit/Débit` (accent spelling varies between legs). */
 const FX_CONVERSION =
-  /^(?:op[ée]ration de change|currency exchange|fx)\s*[-(]?\s*(cr[ée]dit|d[ée]bit)/i;
+  /^(?:op[ée]ration de change|currency exchange|fx)[\s(-]*(cr[ée]dit|d[ée]bit)/i;
 
 /** Matches a currency-pair trade (`Achat/Vente <qty> EUR/CHF@<rate> CCY`). */
 export const fxTradeMatcher: Matcher = {
