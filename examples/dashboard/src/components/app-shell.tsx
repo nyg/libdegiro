@@ -21,7 +21,7 @@ const TABS = [
   { value: 'overview', label: 'Overview', Component: OverviewSection },
   { value: 'positions', label: 'Positions', Component: PositionsSection },
   { value: 'cash', label: 'Cash', Component: CashSection },
-  { value: 'deposits', label: 'Deposits', Component: CashFlowSection },
+  { value: 'funding', label: 'Funding', Component: CashFlowSection },
   { value: 'income', label: 'Income', Component: IncomeSection },
   { value: 'activity', label: 'Activity', Component: ActivitySection },
   { value: 'fees', label: 'Fees', Component: FeesSection },

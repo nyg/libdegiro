@@ -57,7 +57,7 @@ export function CashFlowSection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Deposits and withdrawals</CardTitle>
+          <CardTitle className="text-base">Funding</CardTitle>
           <CardDescription>
             No money entered or left the account from outside it during this statement.
           </CardDescription>
