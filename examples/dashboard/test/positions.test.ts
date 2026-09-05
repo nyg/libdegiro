@@ -100,6 +100,25 @@ describe('buildPositionRows', () => {
     expect(row.net).toBeNull();
     expect(row.fees.length).toBeGreaterThan(0);
   });
+
+  it('costs only the lots no sale consumed, not everything ever bought', () => {
+    const row = find('CH0019852802');
+    expect(row.bought).toBe(86);
+    expect(row.quantity).toBe(8);
+    expect(row.cost).toEqual(new Money('840.32', 'CHF'));
+  });
+
+  it('costs the whole holding when nothing was ever sold', () => {
+    const row = find('IE00B4L5Y983');
+    expect(row.sold).toBe(0);
+    expect(row.cost).toEqual(new Money('4036.62', 'CHF'));
+  });
+
+  it('leaves cost null rather than guessing when the FIFO walk was ambiguous', () => {
+    const row = find('IE00B44Z5B48');
+    expect(row.quantity).toBeGreaterThan(0);
+    expect(row.cost).toBeNull();
+  });
 });
 
 describe('describeHealthProblems', () => {

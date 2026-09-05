@@ -20,6 +20,7 @@ export interface PositionRow {
   readonly appliedFees: readonly Money[];
   /** Fees `net` could not absorb, being in another currency. */
   readonly unappliedFees: readonly Money[];
+  readonly cost: Money | null;
 }
 
 export interface PositionRows {
@@ -50,6 +51,7 @@ export function buildPositionRows(
   feeEntries: readonly FeeEntry[],
 ): PositionRows {
   const pnlByIsin = new Map(portfolio.realizedPnl.map((entry) => [entry.isin, entry]));
+  const costByIsin = new Map(portfolio.openCost.map((entry) => [entry.isin, entry]));
 
   const feesByIsin = new Map<string, FeeEntry[]>();
   for (const entry of feeEntries) {
@@ -82,6 +84,7 @@ export function buildPositionRows(
       net: gross === null ? null : applied.reduce((total, fee) => total.add(fee), gross),
       appliedFees: applied,
       unappliedFees: unapplied,
+      cost: costByIsin.get(position.isin)?.cost ?? null,
     };
   });
 

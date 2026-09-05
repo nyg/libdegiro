@@ -39,10 +39,11 @@ annual exchange connectivity, a plain-English summary, monthly and cumulative
 charts, cost by instrument, and a table matching **every** fee to the order that
 caused it.
 
-Also: an overview of cash, deposits, dividends and interest; cash balance over
-time per currency; positions with FIFO realised P/L; income year by year;
-a filterable activity log where a trade appears with its fee and FX legs
-attached; and a parse-health panel with balance reconciliation.
+Also: an overview of cash, funding, dividends and interest; cash balance over
+time per currency; positions with the cost of what is still held and FIFO
+realised P/L; income year by year; a filterable activity log where a trade
+appears with its fee and FX legs attached; and a parse-health panel with
+balance reconciliation.
 
 ### What it deliberately does not show
 

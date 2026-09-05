@@ -23,6 +23,12 @@ const FEES_METHOD =
 const PNL_METHOD =
   'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold, and only when they were charged in the same currency as the P/L.';
 
+const COST_METHOD =
+  'What the shares still held were bought for: the purchase price of the FIFO lots no sale has consumed, in the currency they were traded in. This is a cost, not a valuation — a statement carries no market price.';
+
+const COST_UNAVAILABLE =
+  'The cost of the shares still held could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
+
 function ExplainedHeader({ label, explanation }: { label: string; explanation: string }) {
   return (
     <TableHead className="text-right">
@@ -38,6 +44,19 @@ function ExplainedHeader({ label, explanation }: { label: string; explanation: s
   );
 }
 
+function Unavailable({ explanation }: { explanation: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-muted-foreground cursor-help text-sm underline decoration-dotted">
+          n/a
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">{explanation}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; showHeld: boolean }) {
   return (
     <div className="overflow-x-auto">
@@ -49,6 +68,7 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
             <TableHead className="text-right">Bought</TableHead>
             <TableHead className="text-right">Sold</TableHead>
             {showHeld ? <TableHead className="text-right">Held</TableHead> : null}
+            {showHeld ? <ExplainedHeader label="Cost" explanation={COST_METHOD} /> : null}
             <ExplainedHeader label="Transaction fees" explanation={FEES_METHOD} />
             <ExplainedHeader label="Realised P/L" explanation={PNL_METHOD} />
           </TableRow>
@@ -67,6 +87,15 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
               {showHeld ? (
                 <TableCell className="tabular text-right font-medium">
                   {formatQuantity(row.quantity)}
+                </TableCell>
+              ) : null}
+              {showHeld ? (
+                <TableCell className="text-right">
+                  {row.cost ? (
+                    <MoneyList amounts={[row.cost]} size="sm" className="items-end" />
+                  ) : (
+                    <Unavailable explanation={COST_UNAVAILABLE} />
+                  )}
                 </TableCell>
               ) : null}
               <TableCell>
@@ -92,14 +121,7 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                     ) : null}
                   </div>
                 ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-muted-foreground cursor-help text-sm underline decoration-dotted">
-                        n/a
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">{PNL_UNAVAILABLE}</TooltipContent>
-                  </Tooltip>
+                  <Unavailable explanation={PNL_UNAVAILABLE} />
                 )}
               </TableCell>
             </TableRow>
