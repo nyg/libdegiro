@@ -57,6 +57,25 @@ describe('FIFO realized P/L (single currency)', () => {
     expect(positions[0]?.bought).toBe(20);
     expect(positions[0]?.sold).toBe(15);
   });
+
+  it('reports what the shares it closed had cost', () => {
+    // 10 * 100 + 5 * 110 — the lots the sell consumed, not everything bought.
+    expect(computeRealizedPnl(movements)[0]?.costBasis?.toString()).toBe('1550 EUR');
+    expect(computeOpenCost(movements)[0]?.cost?.toString()).toBe('550 EUR');
+  });
+
+  it('costs nothing as closed while a position has only ever been bought', () => {
+    const bought = parseDegiroCsv(
+      [
+        HEADER,
+        '01-01-2025,10:00,01-01-2025,TEST,TEST00000004,"Achat 10 TEST@100 EUR (TEST00000004)",,EUR,"-1000,00",EUR,"0,00",o1',
+        '',
+      ].join('\n'),
+    );
+    const [pnl] = computeRealizedPnl(bought.movements);
+    expect(pnl?.costBasis?.toString()).toBe('0 EUR');
+    expect(pnl?.matchedQuantity).toBe(0);
+  });
 });
 
 const sweepPair = (mirrorFirst: boolean) => {
@@ -90,6 +109,7 @@ describe('FIFO realized P/L across currencies', () => {
   it('refuses the figure outright when no rate was supplied', () => {
     const [pnl] = computeRealizedPnl(movements);
     expect(pnl?.amount).toBeNull();
+    expect(pnl?.costBasis).toBeNull();
     expect(pnl?.converted).toBe(false);
     expect(computeOpenCost(movements)[0]?.cost).toBeNull();
   });
@@ -99,6 +119,13 @@ describe('FIFO realized P/L across currencies', () => {
     expect(pnl?.amount?.currency).toBe('EUR');
     expect(pnl?.amount?.amount.toFixed(2)).toBe('367.50');
     expect(pnl?.converted).toBe(true);
+  });
+
+  it('costs the closed lots on their own buy date, in the base currency', () => {
+    const [pnl] = computeRealizedPnl(movements, { rates: crossRates, base: 'EUR' });
+    // 10 * 100 USD at the 1 Jan rate, not the 3 Jan one the sell used.
+    expect(pnl?.costBasis?.amount.toFixed(2)).toBe('909.09');
+    expect(pnl?.costBasis?.currency).toBe('EUR');
   });
 
   it('converts each leg on its own booking date, not the sell date', () => {

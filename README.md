@@ -262,7 +262,7 @@ Deposits and withdrawals are split by the **sign** of the mutation, not by the d
 
 Individual helpers (`computePositions`, `computeRealizedPnl`, `computeOpenCost`, `cashByCurrency`, `externalFlows`, `sumByCurrency`) are exported too.
 
-`openCost` is what the unsold lots were bought for, not a valuation — no statement carries a current price. It is `null` under the same conditions as realized P/L.
+`openCost` is what the unsold lots were bought for, not a valuation — no statement carries a current price. It is `null` under the same conditions as realized P/L. Its mirror sits on the P/L entry itself: `realizedPnl[i].costBasis` is what the lots a sale _consumed_ were bought for, so a realized figure can be read against the money it was made on.
 
 > **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is incomplete within the statement window, missing a price, or multi-currency with no exchange rate supplied — rather than guessing.
 
