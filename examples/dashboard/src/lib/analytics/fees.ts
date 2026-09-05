@@ -1,9 +1,11 @@
 import {
   Money,
+  convert,
   sumByCurrency,
   type BrokerageFeeMovement,
   type ConnectivityFeeMovement,
   type Movement,
+  type RateTable,
 } from 'libdegiro';
 import { monthKey, monthStart, addMonths } from '@/lib/format';
 import { parseExchange, type ExchangeRef } from './exchange';
@@ -89,6 +91,32 @@ export function collectFees(movements: readonly Movement[]): FeeCollection {
 
 export const inCurrency = (entries: readonly FeeEntry[], currency: string): readonly FeeEntry[] =>
   entries.filter((entry) => entry.currency === currency);
+
+export interface ConvertedFees {
+  readonly entries: readonly FeeEntry[];
+  readonly stranded: readonly FeeEntry[];
+}
+
+export function feesIn(
+  entries: readonly FeeEntry[],
+  base: string,
+  rates: RateTable,
+): ConvertedFees {
+  const converted: FeeEntry[] = [];
+  const stranded: FeeEntry[] = [];
+
+  for (const entry of entries) {
+    if (entry.currency === base) {
+      converted.push(entry);
+      continue;
+    }
+    const amount = convert(entry.amount, base, entry.date, rates);
+    if (amount === null) stranded.push(entry);
+    else converted.push({ ...entry, amount, currency: base });
+  }
+
+  return { entries: converted, stranded };
+}
 
 export const ofCategory = (
   entries: readonly FeeEntry[],

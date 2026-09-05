@@ -148,7 +148,7 @@ export function CashFlowSection() {
                 type="stepAfter"
                 stroke="var(--color-cumulative)"
                 strokeWidth={2}
-                dot={{ r: 3 }}
+                dot={false}
                 activeDot={{ r: 5 }}
               />
             </LineChart>

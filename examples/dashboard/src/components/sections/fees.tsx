@@ -7,6 +7,7 @@ import {
   feeRatio,
   feesByMonth,
   feesByProduct,
+  feesIn,
   inCurrency,
   type FeeContext,
   type FeeRatio,
@@ -46,6 +47,8 @@ const RATIO_EXPLANATIONS: Record<Exclude<FeeRatio, { kind: 'pct' }>['why'], stri
     'The order settled in more than one currency, so there is no single base to compare against.',
   'no-consideration': 'The order has no trade amount to compare the fee against.',
 };
+
+const TOTAL = '__total__';
 
 const RATIO_CONVERTED =
   'The fee was booked in another currency and converted into the trade’s at the ECB reference rate for the day it was charged.';
@@ -129,9 +132,22 @@ function WhyCell({ context }: { context: FeeContext }) {
 export function FeesSection() {
   const { fees, feeTotals, feeContexts, range, fx } = useAnalytics();
   const currencies = feeTotals.currencies;
-  const [currency, setCurrency] = useState(() => currencies[0] ?? 'EUR');
+  const base = fx?.rates && fx.base ? fx.base : null;
+  const combinable = base !== null && currencies.length > 1;
 
-  const active = currencies.includes(currency) ? currency : (currencies[0] ?? 'EUR');
+  const [selection, setSelection] = useState(() => currencies[0] ?? 'EUR');
+  const options = combinable ? [...currencies, TOTAL] : currencies;
+  const selected = options.includes(selection) ? selection : (currencies[0] ?? 'EUR');
+  const total = selected === TOTAL;
+  const active = total && base !== null ? base : selected;
+
+  const scoped = useMemo(
+    () =>
+      total && base !== null && fx?.rates
+        ? feesIn(fees.entries, base, fx.rates)
+        : { entries: fees.entries, stranded: [] },
+    [fees.entries, total, base, fx],
+  );
 
   const narrative = useMemo(
     () => buildFeeNarrative(fees.entries, feeTotals),
@@ -140,30 +156,30 @@ export function FeesSection() {
 
   const monthly = useMemo(
     () =>
-      feesByMonth(fees.entries, active, {
+      feesByMonth(scoped.entries, active, {
         fill: true,
         ...(range ? { range: [range.from, range.to] as const } : {}),
       }),
-    [fees.entries, active, range],
+    [scoped.entries, active, range],
   );
 
   const cumulative = useMemo(
     () =>
-      cumulativeFees(fees.entries, active, {
+      cumulativeFees(scoped.entries, active, {
         fill: true,
         ...(range ? { range: [range.from, range.to] as const } : {}),
       }),
-    [fees.entries, active, range],
+    [scoped.entries, active, range],
   );
 
-  const products = useMemo(() => feesByProduct(fees.entries, active), [fees.entries, active]);
+  const products = useMemo(() => feesByProduct(scoped.entries, active), [scoped.entries, active]);
   const connectivity = useMemo(
-    () => connectivityFeesByYearAndExchange(fees.entries, active),
-    [fees.entries, active],
+    () => connectivityFeesByYearAndExchange(scoped.entries, active),
+    [scoped.entries, active],
   );
   const scopedCount = useMemo(
-    () => inCurrency(fees.entries, active).length,
-    [fees.entries, active],
+    () => inCurrency(scoped.entries, active).length,
+    [scoped.entries, active],
   );
 
   if (fees.entries.length === 0) {
@@ -212,11 +228,16 @@ export function FeesSection() {
         <div>
           <h3 className="font-medium">When you paid</h3>
           <p className="text-muted-foreground text-sm">
-            {scopedCount} fees booked in {active}
+            {total
+              ? `${scopedCount} fees converted into ${active} at the rate of the day each was charged`
+              : `${scopedCount} fees booked in ${active}`}
+            {total && scoped.stranded.length > 0
+              ? ` — ${scoped.stranded.length} had no usable rate and are left out`
+              : ''}
           </p>
         </div>
-        {currencies.length > 1 ? (
-          <Select value={active} onValueChange={setCurrency}>
+        {options.length > 1 ? (
+          <Select value={selected} onValueChange={setSelection}>
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
@@ -226,6 +247,7 @@ export function FeesSection() {
                   {code}
                 </SelectItem>
               ))}
+              {combinable ? <SelectItem value={TOTAL}>Total</SelectItem> : null}
             </SelectContent>
           </Select>
         ) : null}

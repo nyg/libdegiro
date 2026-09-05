@@ -1,4 +1,4 @@
-import type { Money, Movement } from 'libdegiro';
+import { Money, convert, type Movement, type RateTable } from 'libdegiro';
 
 export interface BalancePoint {
   readonly date: Date;
@@ -73,6 +73,47 @@ export function dailyBalanceSeries(
   }
 
   return days;
+}
+
+export function totalBalanceSeries(
+  movements: readonly Movement[],
+  base: string,
+  rates: RateTable,
+): BalancePoint[] {
+  const points = balanceCurrencies(movements)
+    .flatMap((currency) => dailyBalanceSeries(movements, currency))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const standing = new Map<string, Money>();
+  const days: BalancePoint[] = [];
+
+  for (const point of points) {
+    standing.set(point.balance.currency, point.balance);
+    const total = sumConverted(standing.values(), base, point.date, rates);
+    if (total === null) continue;
+
+    const previous = days[days.length - 1];
+    const day = { date: point.date, balance: total, line: null };
+    if (previous && isSameUtcDay(previous.date, point.date)) days[days.length - 1] = day;
+    else days.push(day);
+  }
+
+  return days;
+}
+
+function sumConverted(
+  amounts: Iterable<Money>,
+  base: string,
+  on: Date,
+  rates: RateTable,
+): Money | null {
+  let total = Money.zero(base);
+  for (const amount of amounts) {
+    const inBase = convert(amount, base, on, rates);
+    if (inBase === null) return null;
+    total = total.add(inBase);
+  }
+  return total;
 }
 
 const isSameUtcDay = (a: Date, b: Date): boolean =>
