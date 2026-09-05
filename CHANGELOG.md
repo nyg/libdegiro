@@ -1,6 +1,24 @@
 # Changelog
 
 
+## [1.0.1](https://github.com/nyg/libdegiro/compare/v1.0.0..v1.0.1) - 2026-09-05
+
+### ⛰️  Features
+
+- [`c1d3d26`](https://github.com/nyg/libdegiro/commit/c1d3d26cccb4f6053ca53e1cf12481593c0a9be4) Cost basis of sold shares, and reference-currency dashboard totals ([#47](https://github.com/nyg/libdegiro/issues/47))
+- [`05a5ea5`](https://github.com/nyg/libdegiro/commit/05a5ea52b3cede4971e1ad84e9807ca1d778469d) *(dashboard)* Convert cross-currency figures with ECB reference rates ([#42](https://github.com/nyg/libdegiro/issues/42))
+- [`7ffb9f2`](https://github.com/nyg/libdegiro/commit/7ffb9f2dbcfd757caa30ba8c57411088e5ef3140) *(dashboard)* Show cost basis of open positions and rename Deposits to Funding ([#41](https://github.com/nyg/libdegiro/issues/41))
+- [`f5a1fcc`](https://github.com/nyg/libdegiro/commit/f5a1fccdf6f35c4ab042836741513f3cb217af12) Parse DEGIRO exports in any interface language ([#39](https://github.com/nyg/libdegiro/issues/39))
+
+### 🐛 Bug Fixes
+
+- [`9e19502`](https://github.com/nyg/libdegiro/commit/9e19502587b5db5e742b655af8567d0a2330ff09) *(deps)* Update all stable non-major dependencies ([#46](https://github.com/nyg/libdegiro/issues/46))
+
+### ⚙️ Miscellaneous
+
+- [`3010a5f`](https://github.com/nyg/libdegiro/commit/3010a5feefc82b76672b88fe7d7aa867b7e98f20) *(deps)* Update dependency pnpm to v12 ([#45](https://github.com/nyg/libdegiro/issues/45))
+- [`5b288ac`](https://github.com/nyg/libdegiro/commit/5b288ac1ba7cb63088424f2c184af1aef74eedcb) Ignore all CSV files ([#38](https://github.com/nyg/libdegiro/issues/38))
+
 ## [1.0.0](https://github.com/nyg/libdegiro/compare/v0.1.1..v1.0.0) - 2026-08-22
 
 ### ⛰️  Features
