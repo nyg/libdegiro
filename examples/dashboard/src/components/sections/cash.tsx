@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { dailyBalanceSeries } from '@/lib/analytics';
+import { dailyBalanceSeries, totalBalanceSeries } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,17 +18,24 @@ import {
 } from '@/components/ui/chart';
 import { formatAxisNumber, formatDate, formatDecimal, toChartNumber } from '@/lib/format';
 
-/** Past this many points, per-point dots read as noise rather than as data. */
-const DOT_LIMIT = 40;
+const TOTAL = '__total__';
 
 export function CashSection() {
-  const { result, currencies } = useAnalytics();
-  const [currency, setCurrency] = useState(() => currencies[0] ?? 'EUR');
-  const active = currencies.includes(currency) ? currency : (currencies[0] ?? 'EUR');
+  const { result, currencies, fx } = useAnalytics();
+  const base = fx?.rates && fx.base ? fx.base : null;
+  const combinable = base !== null && currencies.length > 1;
+
+  const [selection, setSelection] = useState(() => currencies[0] ?? 'EUR');
+  const options = combinable ? [...currencies, TOTAL] : currencies;
+  const active = options.includes(selection) ? selection : (currencies[0] ?? 'EUR');
+  const total = active === TOTAL;
 
   const series = useMemo(
-    () => dailyBalanceSeries(result.movements, active),
-    [result.movements, active],
+    () =>
+      total && base && fx?.rates
+        ? totalBalanceSeries(result.movements, base, fx.rates)
+        : dailyBalanceSeries(result.movements, active),
+    [result.movements, active, total, base, fx],
   );
 
   const data = useMemo(
@@ -42,11 +49,13 @@ export function CashSection() {
     [series],
   );
 
+  const label = total ? `Total ≈ ${base}` : active;
+
   // The tooltip names the series, so the currency belongs there rather than
   // repeated on every y tick.
   const config = useMemo(
-    () => ({ balance: { label: active, color: 'var(--chart-2)' } }) satisfies ChartConfig,
-    [active],
+    () => ({ balance: { label, color: 'var(--chart-2)' } }) satisfies ChartConfig,
+    [label],
   );
 
   return (
@@ -57,10 +66,18 @@ export function CashSection() {
           <CardDescription>
             Each point is the balance at the end of that day. Sweeps to and from the flatexDEGIRO
             cash account cancel out within a timestamp and are shown net.
+            {total ? (
+              <>
+                {' '}
+                Every currency’s standing balance is carried forward and converted into {base} at
+                that day’s ECB reference rate, so the line moves with the rate as well as with the
+                cash.
+              </>
+            ) : null}
           </CardDescription>
         </div>
-        {currencies.length > 1 ? (
-          <Select value={active} onValueChange={setCurrency}>
+        {options.length > 1 ? (
+          <Select value={active} onValueChange={setSelection}>
             <SelectTrigger className="w-32 shrink-0">
               <SelectValue />
             </SelectTrigger>
@@ -70,6 +87,7 @@ export function CashSection() {
                   {code}
                 </SelectItem>
               ))}
+              {combinable ? <SelectItem value={TOTAL}>Total</SelectItem> : null}
             </SelectContent>
           </Select>
         ) : null}
@@ -77,7 +95,7 @@ export function CashSection() {
       <CardContent>
         {data.length === 0 ? (
           <p className="text-muted-foreground py-12 text-center text-sm">
-            No {active} balances in this statement.
+            No {total ? 'convertible' : active} balances in this statement.
           </p>
         ) : (
           <ChartContainer config={config} className="h-[320px] w-full">
@@ -121,7 +139,7 @@ export function CashSection() {
                 fill="var(--color-balance)"
                 fillOpacity={0.15}
                 strokeWidth={2}
-                dot={data.length <= DOT_LIMIT ? { r: 2 } : false}
+                dot={false}
                 activeDot={{ r: 4 }}
               />
             </AreaChart>

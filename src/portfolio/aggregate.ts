@@ -31,6 +31,7 @@ export interface RealizedPnl {
   readonly amount: Money | null;
   /** Quantity of shares closed (matched buy↔sell). */
   readonly matchedQuantity: number;
+  readonly costBasis: Money | null;
   readonly converted: boolean;
 }
 
@@ -129,6 +130,7 @@ interface Conversion {
 interface LotWalk {
   readonly realized: Big;
   readonly matched: number;
+  readonly consumed: Big;
   /** Purchase lots the sells never consumed — what is still held. */
   readonly lots: readonly Lot[];
   readonly currency: string | null;
@@ -151,6 +153,7 @@ function walkLots(trades: readonly TradeMovement[], conversion?: Conversion): Lo
   );
   const lots: Lot[] = [];
   let realized = new Big(0);
+  let consumed = new Big(0);
   let currency: string | null = null;
   let ambiguous = false;
   let mixedCurrency = false;
@@ -184,6 +187,7 @@ function walkLots(trades: readonly TradeMovement[], conversion?: Conversion): Lo
       const take = Math.min(remaining, lot.qty);
       if (lot.currency !== tradeCurrency) mixedCurrency = true;
       realized = realized.plus(price.amount.minus(lot.price).times(take));
+      consumed = consumed.plus(lot.price.times(take));
       matched += take;
       lot.qty -= take;
       remaining -= take;
@@ -192,7 +196,7 @@ function walkLots(trades: readonly TradeMovement[], conversion?: Conversion): Lo
     if (remaining > 0) ambiguous = true; // sold more than the known cost basis
   }
 
-  return { realized, matched, lots, currency, ambiguous, mixedCurrency };
+  return { realized, matched, consumed, lots, currency, ambiguous, mixedCurrency };
 }
 
 function walkFor(
@@ -239,6 +243,7 @@ export function computeRealizedPnl(
       product: trades[0]?.product ?? null,
       amount: unusable(walk) ? null : new Money(walk.realized, walk.currency!),
       matchedQuantity: walk.matched,
+      costBasis: unusable(walk) ? null : new Money(walk.consumed, walk.currency!),
       converted,
     });
   }

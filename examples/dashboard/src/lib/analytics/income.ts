@@ -1,5 +1,6 @@
-import { sumByCurrency, type Money, type Movement } from 'libdegiro';
+import { sumByCurrency, type Money, type Movement, type PortfolioOptions } from 'libdegiro';
 import { utcYear } from '@/lib/format';
+import { totalIn, type ConvertedTotal, type DatedAmount } from './convert';
 
 /** Dividends and the tax withheld on them, for one instrument. */
 export interface DividendGroup {
@@ -102,6 +103,15 @@ export interface YearlyIncome {
   readonly dividendTax: readonly Money[];
   readonly interest: readonly Money[];
   readonly fees: readonly Money[];
+  readonly total: ConvertedTotal;
+}
+
+export interface IncomeTotals {
+  readonly dividends: ConvertedTotal;
+  readonly dividendTax: ConvertedTotal;
+  readonly interest: ConvertedTotal;
+  readonly fees: ConvertedTotal;
+  readonly total: ConvertedTotal;
 }
 
 const KINDS_BY_BUCKET = {
@@ -111,16 +121,28 @@ const KINDS_BY_BUCKET = {
   fees: new Set(['brokerageFee', 'connectivityFee']),
 } as const;
 
+const EVERY_KIND: ReadonlySet<string> = new Set(
+  Object.values(KINDS_BY_BUCKET).flatMap((kinds) => [...kinds]),
+);
+
+const amountsOf = (rows: readonly Movement[], kinds: ReadonlySet<string>): Money[] =>
+  sumByCurrency(rows.filter((m) => kinds.has(m.kind)).map((m) => m.amount));
+
+const datedOf = (rows: readonly Movement[], kinds: ReadonlySet<string>): DatedAmount[] =>
+  rows
+    .filter((m) => kinds.has(m.kind))
+    .flatMap((m) => (m.amount === null ? [] : [{ amount: m.amount, date: m.record.bookingDate }]));
+
 /** Income and cost lines rolled up per UTC calendar year, oldest first. */
-export function incomeByYear(movements: readonly Movement[]): YearlyIncome[] {
+export function incomeByYear(
+  movements: readonly Movement[],
+  fx?: PortfolioOptions | null,
+): YearlyIncome[] {
   const years = new Map<number, Movement[]>();
   for (const movement of movements) {
     const year = utcYear(movement.record.bookingDate);
     years.set(year, [...(years.get(year) ?? []), movement]);
   }
-
-  const amountsOf = (rows: readonly Movement[], kinds: ReadonlySet<string>): Money[] =>
-    sumByCurrency(rows.filter((m) => kinds.has(m.kind)).map((m) => m.amount));
 
   return [...years.entries()]
     .map(([year, rows]) => ({
@@ -129,6 +151,20 @@ export function incomeByYear(movements: readonly Movement[]): YearlyIncome[] {
       dividendTax: amountsOf(rows, KINDS_BY_BUCKET.dividendTax),
       interest: amountsOf(rows, KINDS_BY_BUCKET.interest),
       fees: amountsOf(rows, KINDS_BY_BUCKET.fees),
+      total: totalIn(datedOf(rows, EVERY_KIND), fx),
     }))
     .sort((a, b) => a.year - b.year);
+}
+
+export function totalIncome(
+  movements: readonly Movement[],
+  fx?: PortfolioOptions | null,
+): IncomeTotals {
+  return {
+    dividends: totalIn(datedOf(movements, KINDS_BY_BUCKET.dividends), fx),
+    dividendTax: totalIn(datedOf(movements, KINDS_BY_BUCKET.dividendTax), fx),
+    interest: totalIn(datedOf(movements, KINDS_BY_BUCKET.interest), fx),
+    fees: totalIn(datedOf(movements, KINDS_BY_BUCKET.fees), fx),
+    total: totalIn(datedOf(movements, EVERY_KIND), fx),
+  };
 }

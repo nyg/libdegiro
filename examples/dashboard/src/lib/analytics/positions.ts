@@ -5,6 +5,7 @@ import {
   type PortfolioOptions,
   type PortfolioSummary,
 } from 'libdegiro';
+import { totalAsOf, type ConvertedTotal } from './convert';
 import type { FeeEntry } from './fees';
 
 export interface PositionRow {
@@ -32,9 +33,20 @@ export interface PositionRow {
   readonly feesConverted: boolean;
 }
 
+export interface PositionTotals {
+  readonly cost: ConvertedTotal;
+  readonly fees: ConvertedTotal;
+  readonly net: ConvertedTotal;
+  readonly missingCost: number;
+  readonly missingNet: number;
+}
+
 export interface PositionRows {
   readonly active: readonly PositionRow[];
   readonly closed: readonly PositionRow[];
+  readonly activeTotals: PositionTotals;
+  readonly closedTotals: PositionTotals;
+  readonly costWeights: ReadonlyMap<string, number>;
 }
 
 /**
@@ -60,6 +72,7 @@ export function buildPositionRows(
   portfolio: PortfolioSummary,
   feeEntries: readonly FeeEntry[],
   fx?: PortfolioOptions | null,
+  asOf?: Date | null,
 ): PositionRows {
   const pnlByIsin = new Map(portfolio.realizedPnl.map((entry) => [entry.isin, entry]));
   const costByIsin = new Map(portfolio.openCost.map((entry) => [entry.isin, entry]));
@@ -74,6 +87,8 @@ export function buildPositionRows(
 
   const rows = portfolio.positions.map((position): PositionRow => {
     const pnl = pnlByIsin.get(position.isin);
+    const closed = position.quantity === 0;
+    const open = costByIsin.get(position.isin);
     const gross = pnl?.amount ?? null;
     const matchedQuantity = pnl?.matchedQuantity ?? 0;
     const entries = feesByIsin.get(position.isin) ?? [];
@@ -107,22 +122,72 @@ export function buildPositionRows(
       quantity: position.quantity,
       bought: position.bought,
       sold: position.sold,
-      closed: position.quantity === 0,
+      closed,
       matchedQuantity,
       gross,
       fees,
       net: gross === null ? null : applied.reduce((total, fee) => total.add(fee), gross),
       appliedFees: applied,
       unappliedFees: unapplied,
-      cost: costByIsin.get(position.isin)?.cost ?? null,
+      cost: closed ? (pnl?.costBasis ?? null) : (open?.cost ?? null),
       pnlConverted: pnl?.converted ?? false,
-      costConverted: costByIsin.get(position.isin)?.converted ?? false,
+      costConverted: (closed ? pnl?.converted : open?.converted) ?? false,
       feesConverted,
     };
   });
 
+  const active = rows.filter((row) => !row.closed);
+  const closed = rows.filter((row) => row.closed);
+  const on = asOf ?? null;
+
   return {
-    active: rows.filter((row) => !row.closed),
-    closed: rows.filter((row) => row.closed),
+    active,
+    closed,
+    activeTotals: totalPositions(active, on, fx),
+    closedTotals: totalPositions(closed, on, fx),
+    costWeights: costWeights(active, on, fx),
   };
+}
+
+function totalPositions(
+  rows: readonly PositionRow[],
+  asOf: Date | null,
+  fx: PortfolioOptions | null | undefined,
+): PositionTotals {
+  const present = <T>(value: T | null): value is T => value !== null;
+
+  return {
+    cost: totalAsOf(rows.map((row) => row.cost).filter(present), asOf, fx),
+    fees: totalAsOf(
+      rows.flatMap((row) => row.fees),
+      asOf,
+      fx,
+    ),
+    net: totalAsOf(rows.map((row) => row.net).filter(present), asOf, fx),
+    missingCost: rows.filter((row) => row.cost === null).length,
+    missingNet: rows.filter((row) => row.net === null).length,
+  };
+}
+
+function costWeights(
+  rows: readonly PositionRow[],
+  asOf: Date | null,
+  fx: PortfolioOptions | null | undefined,
+): ReadonlyMap<string, number> {
+  const scaled = new Map<string, Money>();
+  for (const row of rows) {
+    if (row.cost === null) continue;
+    const { amount } = totalAsOf([row.cost], asOf, fx);
+    if (amount !== null) scaled.set(row.isin, amount);
+  }
+
+  const currencies = new Set([...scaled.values()].map((amount) => amount.currency));
+  if (currencies.size !== 1) return new Map();
+
+  const total = [...scaled.values()].reduce((sum, amount) => sum.add(amount));
+  if (total.isZero()) return new Map();
+
+  return new Map(
+    [...scaled].map(([isin, amount]) => [isin, Number(amount.amount.div(total.amount))]),
+  );
 }

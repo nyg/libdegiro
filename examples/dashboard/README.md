@@ -51,27 +51,38 @@ charts, cost by instrument, and a table matching **every** fee to the order that
 caused it.
 
 Also: an overview of cash, funding, dividends and interest; cash balance over
-time per currency; positions with the cost of what is still held and FIFO
-realised P/L; income year by year; a filterable activity log where a trade
-appears with its fee and FX legs attached; and a parse-health panel with
-balance reconciliation.
+time per currency; positions with what the shares cost — the ones still held and
+the ones a sale consumed — their share of the open cost, and FIFO realised P/L;
+income year by year; a filterable activity log where a trade appears with its
+fee and FX legs attached; and a parse-health panel with balance reconciliation.
 
 ### What it deliberately does not show
 
 - **No unrealised profit or loss, and no portfolio value.** An account statement
   records cash movements, not market prices. Showing a current value would mean
   fetching prices, which would break the promise above.
-- **No cross-currency totals.** DEGIRO books fees in EUR against trades that
-  settle in CHF, and libdegiro never nets across currencies. Neither does this
-  app: every total is per currency. The one exception is opt-in and marked. With
-  **Convert with ECB rates** on, the four figures that a statement genuinely
-  cannot produce on its own — realised P/L and cost basis for an instrument
-  traded in two currencies, a fee netted against a P/L in another, and
-  fee-as-percent-of-trade across a currency boundary — are computed by
-  converting each leg on the day it was booked, and shown with a `≈` and a
-  tooltip saying so. A converted figure never replaces a booked one; it only
-  fills a cell that would otherwise read `n/a`. Cash balances, the activity log,
-  every transfer row and the balance reconciliation are never converted.
+- **No cross-currency totals until you ask for one.** DEGIRO books fees in EUR
+  against trades that settle in CHF, and libdegiro never nets across currencies.
+  Neither does this app by default: every figure is per currency. Turning on
+  **Convert with ECB rates** adds two opt-in exceptions, both marked `≈` and both
+  explained by a tooltip.
+
+  First, the figures a statement genuinely cannot produce on its own — realised
+  P/L and cost basis for an instrument traded in two currencies, a fee netted
+  against a P/L in another, and fee-as-percent-of-trade across a currency
+  boundary — become computable. Each leg converts on the day it was booked.
+
+  Second, the roll-ups that only mean anything on a single scale: the Total rows
+  and the cost weighting in Positions, the Total option on the cash chart, the
+  Total option in Fees, and the Total column and row in Income. Where the figures
+  being added carry their own booking dates, each converts on its own date; a
+  Positions total adds up cost bases and realised figures that each span many
+  bookings, so it converts at the statement's last day and says so.
+
+  A converted figure never replaces a booked one — it fills a cell that would
+  otherwise read `n/a`, or opens a view you have to select. Per-currency columns,
+  the activity log, every transfer row and the balance reconciliation are never
+  converted.
 
 ---
 

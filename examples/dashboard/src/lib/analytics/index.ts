@@ -9,7 +9,9 @@ import { explainFees, type FeeContext } from './explain';
 import {
   dividendsByInstrument,
   incomeByYear,
+  totalIncome,
   type DividendGroup,
+  type IncomeTotals,
   type YearlyIncome,
 } from './income';
 import { balanceCurrencies, statementRange, type DateRange } from './timeseries';
@@ -18,6 +20,7 @@ import { buildHealthReport, type HealthReport } from './health';
 import { buildPositionRows, type PositionRows } from './positions';
 
 export * from './cashflow';
+export * from './convert';
 export * from './exchange';
 export * from './fees';
 export * from './summary';
@@ -45,6 +48,7 @@ export interface Analytics {
   readonly cashFlow: CashFlowReport;
   readonly dividends: readonly DividendGroup[];
   readonly income: readonly YearlyIncome[];
+  readonly incomeTotals: IncomeTotals;
   readonly health: HealthReport;
   /** Currencies that have a cash balance series, sorted. */
   readonly currencies: readonly string[];
@@ -59,20 +63,22 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
   ).length;
 
   const portfolio = summarizePortfolio(result.movements, fx ?? undefined);
+  const range = statementRange(result.movements);
 
   return {
     result,
     portfolio,
-    positions: buildPositionRows(portfolio, fees.entries, fx),
+    positions: buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null),
     fees,
     feeTotals: totalFees(fees.entries),
     feeContexts: explainFees(result),
     cashFlow: buildCashFlow(result.movements),
     dividends: dividendsByInstrument(result.movements),
-    income: incomeByYear(result.movements),
+    income: incomeByYear(result.movements, fx),
+    incomeTotals: totalIncome(result.movements, fx),
     health: buildHealthReport(result, unparseableExchanges),
     currencies: balanceCurrencies(result.movements),
-    range: statementRange(result.movements),
+    range,
     fx: fx ?? null,
   };
 }
