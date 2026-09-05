@@ -37,3 +37,7 @@ jobs:
       - run: pnpm run test
 
       - run: pnpm run build
+
+      - run: pnpm run dashboard:typecheck
+
+      - run: pnpm run dashboard:test

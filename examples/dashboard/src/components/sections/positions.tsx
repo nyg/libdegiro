@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { PositionRow } from '@/lib/analytics';
 import { useAnalytics } from '@/state/statement-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,19 +16,22 @@ import { IsinLink } from '@/components/isin-link';
 import { formatMoneyAbs, formatQuantity } from '@/lib/format';
 
 const PNL_UNAVAILABLE =
-  'Realised profit and loss could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
+  'Realised profit and loss could not be computed unambiguously — usually because a sale had no matching purchase inside this statement, or the instrument was traded in more than one currency and no exchange rate was available to bridge them.';
 
 const FEES_METHOD =
   'Every DEGIRO transaction fee booked against this instrument over the statement.';
 
 const PNL_METHOD =
-  'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold, and only when they were charged in the same currency as the P/L.';
+  'FIFO, computed within this statement’s date range, and net of the brokerage fees booked against the instrument. Fees are only netted off once shares have actually been sold. A figure marked ≈ was derived through ECB reference rates rather than booked in one currency.';
 
 const COST_METHOD =
   'What the shares still held were bought for: the purchase price of the FIFO lots no sale has consumed, in the currency they were traded in. This is a cost, not a valuation — a statement carries no market price.';
 
 const COST_UNAVAILABLE =
-  'The cost of the shares still held could not be computed unambiguously — usually because the instrument was traded in more than one currency, or a sale had no matching purchase inside this statement.';
+  'The cost of the shares still held could not be computed unambiguously — usually because a sale had no matching purchase inside this statement, or the instrument was traded in more than one currency and no exchange rate was available to bridge them.';
+
+const CONVERTED =
+  'Derived through ECB reference rates, converting each leg on the day it was booked, rather than read straight off the statement. It therefore includes the currency move as well as the price move.';
 
 function ExplainedHeader({ label, explanation }: { label: string; explanation: string }) {
   return (
@@ -41,6 +45,20 @@ function ExplainedHeader({ label, explanation }: { label: string; explanation: s
         <TooltipContent className="max-w-xs">{explanation}</TooltipContent>
       </Tooltip>
     </TableHead>
+  );
+}
+
+function Converted({ children }: { children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="flex cursor-help items-center justify-end gap-1">
+          <span className="text-muted-foreground text-xs">≈</span>
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs">{CONVERTED}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -92,7 +110,13 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
               {showHeld ? (
                 <TableCell className="text-right">
                   {row.cost ? (
-                    <MoneyList amounts={[row.cost]} size="sm" className="items-end" />
+                    row.costConverted ? (
+                      <Converted>
+                        <MoneyList amounts={[row.cost]} size="sm" className="items-end" />
+                      </Converted>
+                    ) : (
+                      <MoneyList amounts={[row.cost]} size="sm" className="items-end" />
+                    )
                   ) : (
                     <Unavailable explanation={COST_UNAVAILABLE} />
                   )}
@@ -104,7 +128,13 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
               <TableCell className="text-right">
                 {row.net ? (
                   <div className="flex flex-col items-end gap-0.5">
-                    <MoneyList amounts={[row.net]} size="sm" signed className="items-end" />
+                    {row.pnlConverted || row.feesConverted ? (
+                      <Converted>
+                        <MoneyList amounts={[row.net]} size="sm" signed className="items-end" />
+                      </Converted>
+                    ) : (
+                      <MoneyList amounts={[row.net]} size="sm" signed className="items-end" />
+                    )}
                     {row.unappliedFees.length > 0 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -114,8 +144,8 @@ function PositionsTable({ rows, showHeld }: { rows: readonly PositionRow[]; show
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           {row.unappliedFees.map(formatMoneyAbs).join(' and ')} of fees on this
-                          instrument were booked in another currency, and no exchange rate exists in
-                          a statement to convert them.
+                          instrument were booked in another currency, and no exchange rate was
+                          available to convert them.
                         </TooltipContent>
                       </Tooltip>
                     ) : null}

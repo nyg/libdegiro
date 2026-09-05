@@ -1,9 +1,11 @@
 import {
+  convert,
   sumByCurrency,
   type BrokerageFeeMovement,
   type Money,
   type Movement,
   type ParseResult,
+  type RateTable,
   type TradeSide,
   type Transaction,
 } from 'libdegiro';
@@ -150,29 +152,50 @@ export function explainFees(result: ParseResult): FeeContext[] {
 }
 
 export type FeeRatio =
-  | { readonly kind: 'pct'; readonly value: number; readonly currency: string }
+  | {
+      readonly kind: 'pct';
+      readonly value: number;
+      readonly currency: string;
+      readonly converted: boolean;
+    }
   | {
       readonly kind: 'unavailable';
       readonly why: 'currency-mismatch' | 'no-consideration' | 'multi-currency';
     };
 
+export interface RatioConversion {
+  readonly rates: RateTable;
+  readonly date: Date;
+}
+
 /**
  * Fee as a fraction of what the trade moved.
  *
- * Only computed when the fee and the consideration are in the same currency.
- * DEGIRO routinely books a EUR fee against a CHF-settled trade, and bridging
- * that would need an FX rate this app has no way to obtain — it makes no network
- * calls. Reaching for the sibling FX leg's rate would be a guess dressed up as a
- * number, so the UI shows a dash and explains why instead.
+ * DEGIRO routinely books a EUR fee against a CHF-settled trade. Given an ECB
+ * rate table the fee is converted into the trade's own currency on the day it
+ * was booked and the ratio is marked as derived; without one the UI still shows
+ * a dash and explains why, because the statement's own FX column carries no pair
+ * and no direction, and reading a rate out of it would be a guess dressed up as
+ * a number.
  */
-export function feeRatio(fee: Money, consideration: readonly Money[]): FeeRatio {
+export function feeRatio(
+  fee: Money,
+  consideration: readonly Money[],
+  conversion?: RatioConversion,
+): FeeRatio {
   if (consideration.length === 0) return { kind: 'unavailable', why: 'no-consideration' };
   if (consideration.length > 1) return { kind: 'unavailable', why: 'multi-currency' };
 
   const base = consideration[0]!;
-  if (base.currency !== fee.currency) return { kind: 'unavailable', why: 'currency-mismatch' };
+  const converted =
+    base.currency === fee.currency
+      ? fee
+      : conversion
+        ? convert(fee, base.currency, conversion.date, conversion.rates)
+        : null;
+  if (!converted) return { kind: 'unavailable', why: 'currency-mismatch' };
   if (base.isZero()) return { kind: 'unavailable', why: 'no-consideration' };
 
-  const value = Number(fee.abs().amount.div(base.abs().amount).toFixed(6));
-  return { kind: 'pct', value, currency: fee.currency };
+  const value = Number(converted.abs().amount.div(base.abs().amount).toFixed(6));
+  return { kind: 'pct', value, currency: base.currency, converted: converted !== fee };
 }

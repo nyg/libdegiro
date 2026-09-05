@@ -1,6 +1,8 @@
 import { createContext, use } from 'react';
 import type { ParseResult } from 'libdegiro';
 import type { Analytics } from '@/lib/analytics';
+import type { FxPreference } from '@/lib/storage';
+import type { FxState } from '@/state/use-fx-rates';
 
 /**
  * Context and hooks live apart from the provider component so that fast refresh
@@ -24,9 +26,12 @@ export interface StatementContextValue {
   readonly analytics: Analytics | null;
   readonly remember: boolean;
   readonly restoring: boolean;
+  readonly fx: FxState;
+  readonly fxPreference: FxPreference;
   readonly load: (csv: string, fileName: string) => void;
   readonly clear: () => void;
   readonly setRemember: (remember: boolean) => void;
+  readonly setFx: (preference: FxPreference) => void;
   readonly forgetAll: () => void;
 }
 

@@ -24,7 +24,7 @@ pnpm install
 | `pnpm dashboard:test`      | Dashboard analytics tests (separate vitest project)     |
 | `pnpm dashboard:typecheck` | `tsc --noEmit` inside `examples/dashboard`              |
 
-Run `pnpm lint && pnpm typecheck && pnpm test` before proposing a change; that is exactly what CI runs, plus `pnpm build`. If the change touches `examples/dashboard`, run the two `dashboard:` checks as well — the root test run does not cover that directory.
+Run `pnpm lint && pnpm typecheck && pnpm test` before proposing a change; that is exactly what CI runs, plus `pnpm build` and the two `dashboard:` checks. The root test run does not cover `examples/dashboard`, so run `dashboard:typecheck` and `dashboard:test` too whenever a change touches it.
 
 `pnpm test` builds first on purpose: `test/entrypoints.test.ts` executes `dist/index.js` in a child process with `globalThis.Buffer` deleted, so it asserts against the built artefact, not the sources.
 
@@ -40,6 +40,7 @@ src/
   validate/    per-currency balance reconciliation
   portfolio/   positions, FIFO realized P/L, cash and fee roll-ups
   money/       Money — big.js wrapper, exact decimals
+  fx/          RateTable + convert + an ECB daily-rate table, pure, no I/O
   io/          file helpers (Node only)
   index.ts     browser-safe entry
   node.ts      `libdegiro/node` entry — everything touching node: builtins
@@ -60,10 +61,10 @@ Header language, number format and description language are three independent ax
 
 - **The root entry imports no Node builtin.** `src/index.ts` and everything it reaches must stay free of `node:*`; anything needing a filesystem or streams goes behind `src/node.ts`. `test/entrypoints.test.ts` guards this and has caught a regression before.
 - **Parsing is lenient.** Per-row problems become `ParseIssue`s on `errors`/`warnings`. Only an empty input and an unmatched header throw. Do not add throws to the row path.
-- **Never net amounts across currencies.** DEGIRO books fees in EUR against trades settled in CHF. Totals are per currency, everywhere, including the dashboard.
+- **Never net amounts across currencies.** DEGIRO books fees in EUR against trades settled in CHF. Totals are per currency, everywhere, including the dashboard. The one exception is explicit and opt-in: given a `RateTable`, the FIFO walk and the fee ratio convert each leg on its own booking date, and every figure that came out of a rate is flagged `converted` and marked `≈` in the UI. A converted figure never replaces a booked one — it only fills a cell that would otherwise read `n/a`.
 - **All dates are UTC.** The statement carries no timezone; `Date.UTC` is used deliberately. In the dashboard, use `getUTC*` — a bare `getMonth()` shifts fees across month boundaries for anyone west of UTC.
 - **`Money` never crosses a structured-clone boundary.** No Web Worker, no `postMessage`, and IndexedDB stores raw CSV text rather than a parsed result — cloning strips the class prototype and leaves inert `Big` internals. Charts receive plain numbers from an adapter.
-- **The dashboard makes no network requests.** The production build injects a CSP with `connect-src 'none'`; dev mode replaces `fetch`, `XMLHttpRequest` and `sendBeacon` with throwing stubs. Adding a request breaks the app's central promise.
+- **The dashboard talks to exactly one host, and never about a statement.** The production build injects a CSP whose `connect-src` names `https://api.frankfurter.dev` and nothing else; dev mode replaces `fetch` with a stub that throws for every other URL, and `XMLHttpRequest` and `sendBeacon` with stubs that always throw. That one request carries a date range and a list of currency codes — never an ISIN, an amount or a holding — and only when the FX setting is on. Widening `connect-src`, or sending anything statement-derived to it, breaks the app's central promise.
 - **The dashboard resolves `libdegiro` through the exports map**, not a source alias. Keep it that way; the alias would hide browser-compat bugs. Rebuild the library after changing `src/` before checking the app.
 
 ## Conventions

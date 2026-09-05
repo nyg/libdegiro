@@ -1,4 +1,10 @@
-import { sumByCurrency, type Money, type PortfolioSummary } from 'libdegiro';
+import {
+  convert,
+  sumByCurrency,
+  type Money,
+  type PortfolioOptions,
+  type PortfolioSummary,
+} from 'libdegiro';
 import type { FeeEntry } from './fees';
 
 export interface PositionRow {
@@ -21,6 +27,9 @@ export interface PositionRow {
   /** Fees `net` could not absorb, being in another currency. */
   readonly unappliedFees: readonly Money[];
   readonly cost: Money | null;
+  readonly pnlConverted: boolean;
+  readonly costConverted: boolean;
+  readonly feesConverted: boolean;
 }
 
 export interface PositionRows {
@@ -37,9 +46,10 @@ export interface PositionRows {
  *     that was bought and never sold, realised P/L is a trivial zero and its
  *     fees are part of the cost basis of shares still held — netting them would
  *     invent a loss that has not happened.
- *  2. Only fees booked in the P/L's own currency are netted. DEGIRO charges an
- *     EUR fee against a CHF trade routinely, and there is no FX rate here to
- *     bridge them. The remainder stays visible as `unappliedFees`.
+ *  2. A fee booked in another currency is netted only when an exchange rate can
+ *     bridge it, converted on the day it was charged. DEGIRO charges an EUR fee
+ *     against a CHF trade routinely; with no rate table the remainder stays
+ *     visible as `unappliedFees` rather than being folded in at a made-up rate.
  *
  * Nothing is pro-rated. A partially closed position therefore carries the whole
  * instrument's fees against the part that closed, which overstates the cost —
@@ -49,6 +59,7 @@ export interface PositionRows {
 export function buildPositionRows(
   portfolio: PortfolioSummary,
   feeEntries: readonly FeeEntry[],
+  fx?: PortfolioOptions | null,
 ): PositionRows {
   const pnlByIsin = new Map(portfolio.realizedPnl.map((entry) => [entry.isin, entry]));
   const costByIsin = new Map(portfolio.openCost.map((entry) => [entry.isin, entry]));
@@ -65,11 +76,30 @@ export function buildPositionRows(
     const pnl = pnlByIsin.get(position.isin);
     const gross = pnl?.amount ?? null;
     const matchedQuantity = pnl?.matchedQuantity ?? 0;
-    const fees = sumByCurrency((feesByIsin.get(position.isin) ?? []).map((entry) => entry.amount));
+    const entries = feesByIsin.get(position.isin) ?? [];
+    const fees = sumByCurrency(entries.map((entry) => entry.amount));
 
-    const nettable = gross !== null && matchedQuantity > 0;
-    const applied = nettable ? fees.filter((fee) => fee.currency === gross.currency) : [];
-    const unapplied = nettable ? fees.filter((fee) => fee.currency !== gross.currency) : [];
+    const target = gross !== null && matchedQuantity > 0 ? gross.currency : null;
+    const bridged: Money[] = [];
+    const stranded: Money[] = [];
+    let feesConverted = false;
+    if (target !== null) {
+      for (const entry of entries) {
+        if (entry.amount.currency === target) {
+          bridged.push(entry.amount);
+          continue;
+        }
+        const converted = fx?.rates ? convert(entry.amount, target, entry.date, fx.rates) : null;
+        if (converted) {
+          bridged.push(converted);
+          feesConverted = true;
+        } else {
+          stranded.push(entry.amount);
+        }
+      }
+    }
+    const applied = sumByCurrency(bridged);
+    const unapplied = sumByCurrency(stranded);
 
     return {
       isin: position.isin,
@@ -85,6 +115,9 @@ export function buildPositionRows(
       appliedFees: applied,
       unappliedFees: unapplied,
       cost: costByIsin.get(position.isin)?.cost ?? null,
+      pnlConverted: pnl?.converted ?? false,
+      costConverted: costByIsin.get(position.isin)?.converted ?? false,
+      feesConverted,
     };
   });
 

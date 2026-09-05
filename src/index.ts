@@ -10,6 +10,7 @@ export const version = '0.1.0';
 
 export * from './errors';
 export * from './money/money';
+export * from './fx/index';
 export * from './csv/tokenizer';
 export * from './dialects/index';
 export * from './records/index';

@@ -8,27 +8,38 @@ Live at **https://nyg.github.io/libdegiro/**.
 
 ---
 
-## Nothing leaves your browser
+## Your statement never leaves your browser
 
 This is enforced, not just promised:
 
 - The production build ships a `Content-Security-Policy` meta tag with
-  `default-src 'none'` and **`connect-src 'none'`**, which blocks every fetch,
-  XHR, WebSocket and beacon the page could attempt. Open the Network tab: after
-  the page's own HTML, JS and CSS load, there is nothing.
+  `default-src 'none'` and a **`connect-src` naming a single host**,
+  `https://api.frankfurter.dev`. Every other fetch, XHR, WebSocket and beacon
+  the page could attempt is blocked outright.
+- That one host serves **ECB daily reference exchange rates**. The request is a
+  date range and a list of currency codes — `2023-10-31..2025-02-01`,
+  `CHF,USD`. That is the entire vocabulary of the endpoint: there is no field
+  in which an ISIN, an amount or a holding could be sent, and none is. It is
+  made once per statement, cached, and only while **Convert with ECB rates** is
+  on. Turn that off and the app makes no requests at all.
 - There is no backend. GitHub Pages serves static files and receives no data.
 - The sample statement is inlined at build time rather than fetched.
 - In development the CSP would break HMR, so instead `main.tsx` replaces
-  `fetch`, `XMLHttpRequest` and `sendBeacon` with functions that throw. Any
-  dependency that tries to phone home fails on the first dev run.
+  `fetch` with a stub that throws for any URL outside that one host, and
+  `XMLHttpRequest` and `sendBeacon` with stubs that always throw. Any dependency
+  that tries to phone home fails on the first dev run.
 
-Two honest limitations: `frame-ancestors` cannot be set from a meta tag and
-Pages cannot send headers, so this page has no clickjacking protection; and a
-CSP constrains the page, not a browser extension.
+Three honest limitations: `frame-ancestors` cannot be set from a meta tag and
+Pages cannot send headers, so this page has no clickjacking protection; a CSP
+constrains the page, not a browser extension; and while the rate request carries
+nothing about your holdings, it does tell Frankfurter that someone at your IP
+looked up those currencies over those dates. The switch is there for that.
 
 **Storage is opt-in.** Nothing is written unless you tick "Remember on this
 device", which stores the raw CSV text in IndexedDB and restores it next visit.
-Untick it, or press Forget, and it is deleted immediately.
+Untick it, or press Forget, and it is deleted immediately. Fetched exchange
+rates are cached under the same consent and deleted with it — they are public
+ECB numbers, but the date range they cover is not.
 
 ---
 
@@ -52,9 +63,15 @@ balance reconciliation.
   fetching prices, which would break the promise above.
 - **No cross-currency totals.** DEGIRO books fees in EUR against trades that
   settle in CHF, and libdegiro never nets across currencies. Neither does this
-  app: every total is per currency, and a fee-as-percent-of-trade is shown only
-  when both sides share a currency. Otherwise you get a dash and an explanation
-  rather than a number derived from a rate we do not have.
+  app: every total is per currency. The one exception is opt-in and marked. With
+  **Convert with ECB rates** on, the four figures that a statement genuinely
+  cannot produce on its own — realised P/L and cost basis for an instrument
+  traded in two currencies, a fee netted against a P/L in another, and
+  fee-as-percent-of-trade across a currency boundary — are computed by
+  converting each leg on the day it was booked, and shown with a `≈` and a
+  tooltip saying so. A converted figure never replaces a booked one; it only
+  fills a cell that would otherwise read `n/a`. Cash balances, the activity log,
+  every transfer row and the balance reconciliation are never converted.
 
 ---
 

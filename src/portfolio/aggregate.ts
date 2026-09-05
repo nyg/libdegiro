@@ -1,6 +1,12 @@
 import Big from 'big.js';
 import { Money } from '../money/money';
 import type { Movement, TradeMovement } from '../classify/types';
+import { convert, type RateTable } from '../fx/rates';
+
+export interface PortfolioOptions {
+  readonly rates?: RateTable;
+  readonly base?: string;
+}
 
 /** Net holding in a single instrument. */
 export interface Position {
@@ -17,13 +23,15 @@ export interface RealizedPnl {
   readonly isin: string;
   readonly product: string | null;
   /**
-   * Realized P/L, or `null` when it cannot be computed unambiguously — e.g. the
-   * instrument was traded in more than one currency, a sell lacked cost basis
-   * within the statement window, or a price was missing.
+   * Realized P/L, or `null` when it cannot be computed unambiguously — a sell
+   * lacked cost basis within the statement window, a price was missing, or the
+   * instrument was traded in more than one currency and no {@link RateTable}
+   * was supplied to bridge them.
    */
   readonly amount: Money | null;
   /** Quantity of shares closed (matched buy↔sell). */
   readonly matchedQuantity: number;
+  readonly converted: boolean;
 }
 
 /** What the shares still held in one instrument originally cost. */
@@ -34,9 +42,11 @@ export interface OpenCost {
   readonly quantity: number;
   /**
    * Purchase price of the unsold lots, or `null` when the history is
-   * multi-currency or incomplete — the same discipline {@link RealizedPnl} uses.
+   * incomplete, or multi-currency with no {@link RateTable} to bridge it — the
+   * same discipline {@link RealizedPnl} uses.
    */
   readonly cost: Money | null;
+  readonly converted: boolean;
 }
 
 /** A currency-keyed roll-up of an account. */
@@ -108,6 +118,12 @@ interface Lot {
   qty: number;
   price: Big;
   currency: string;
+  date: Date;
+}
+
+interface Conversion {
+  readonly rates: RateTable;
+  readonly base: string;
 }
 
 interface LotWalk {
@@ -117,6 +133,7 @@ interface LotWalk {
   readonly lots: readonly Lot[];
   readonly currency: string | null;
   readonly ambiguous: boolean;
+  readonly mixedCurrency: boolean;
 }
 
 /**
@@ -128,7 +145,7 @@ interface LotWalk {
  * runs once and returns both rather than being repeated with the leftovers
  * re-derived.
  */
-function walkLots(trades: readonly TradeMovement[]): LotWalk {
+function walkLots(trades: readonly TradeMovement[], conversion?: Conversion): LotWalk {
   const chrono = [...trades].sort(
     (a, b) => a.record.bookingDate.getTime() - b.record.bookingDate.getTime(),
   );
@@ -136,6 +153,7 @@ function walkLots(trades: readonly TradeMovement[]): LotWalk {
   let realized = new Big(0);
   let currency: string | null = null;
   let ambiguous = false;
+  let mixedCurrency = false;
   let matched = 0;
 
   for (const trade of chrono) {
@@ -143,12 +161,20 @@ function walkLots(trades: readonly TradeMovement[]): LotWalk {
       ambiguous = true;
       continue;
     }
-    const tradeCurrency = trade.unitPrice.currency;
+    const date = trade.record.bookingDate;
+    const price = conversion
+      ? convert(trade.unitPrice, conversion.base, date, conversion.rates)
+      : trade.unitPrice;
+    if (!price) {
+      ambiguous = true;
+      continue;
+    }
+    const tradeCurrency = price.currency;
     if (currency === null) currency = tradeCurrency;
-    else if (currency !== tradeCurrency) ambiguous = true;
+    else if (currency !== tradeCurrency) mixedCurrency = true;
 
     if (trade.side === 'buy') {
-      lots.push({ qty: trade.quantity, price: trade.unitPrice.amount, currency: tradeCurrency });
+      lots.push({ qty: trade.quantity, price: price.amount, currency: tradeCurrency, date });
       continue;
     }
 
@@ -156,8 +182,8 @@ function walkLots(trades: readonly TradeMovement[]): LotWalk {
     while (remaining > 0 && lots.length > 0) {
       const lot = lots[0]!;
       const take = Math.min(remaining, lot.qty);
-      if (lot.currency !== tradeCurrency) ambiguous = true;
-      realized = realized.plus(trade.unitPrice.amount.minus(lot.price).times(take));
+      if (lot.currency !== tradeCurrency) mixedCurrency = true;
+      realized = realized.plus(price.amount.minus(lot.price).times(take));
       matched += take;
       lot.qty -= take;
       remaining -= take;
@@ -166,8 +192,25 @@ function walkLots(trades: readonly TradeMovement[]): LotWalk {
     if (remaining > 0) ambiguous = true; // sold more than the known cost basis
   }
 
-  return { realized, matched, lots, currency, ambiguous };
+  return { realized, matched, lots, currency, ambiguous, mixedCurrency };
 }
+
+function walkFor(
+  trades: readonly TradeMovement[],
+  options: PortfolioOptions | undefined,
+): { readonly walk: LotWalk; readonly converted: boolean } {
+  const plain = walkLots(trades);
+  const { rates, base } = options ?? {};
+  if (!plain.mixedCurrency || plain.ambiguous || !rates || !base) {
+    return { walk: plain, converted: false };
+  }
+  const converted = walkLots(trades, { rates, base });
+  if (converted.ambiguous || converted.mixedCurrency) return { walk: plain, converted: false };
+  return { walk: converted, converted: true };
+}
+
+const unusable = (walk: LotWalk): boolean =>
+  walk.ambiguous || walk.mixedCurrency || walk.currency === null;
 
 function byIsin(movements: readonly Movement[]): Map<string, TradeMovement[]> {
   const map = new Map<string, TradeMovement[]>();
@@ -184,16 +227,19 @@ function byIsin(movements: readonly Movement[]): Map<string, TradeMovement[]> {
  * Compute FIFO realized P/L per ISIN. Best-effort: returns `null` for an
  * instrument whose history is multi-currency or incomplete (see {@link RealizedPnl}).
  */
-export function computeRealizedPnl(movements: readonly Movement[]): RealizedPnl[] {
+export function computeRealizedPnl(
+  movements: readonly Movement[],
+  options?: PortfolioOptions,
+): RealizedPnl[] {
   const results: RealizedPnl[] = [];
   for (const [isin, trades] of byIsin(movements)) {
-    const walk = walkLots(trades);
+    const { walk, converted } = walkFor(trades, options);
     results.push({
       isin,
       product: trades[0]?.product ?? null,
-      amount:
-        walk.ambiguous || walk.currency === null ? null : new Money(walk.realized, walk.currency),
+      amount: unusable(walk) ? null : new Money(walk.realized, walk.currency!),
       matchedQuantity: walk.matched,
+      converted,
     });
   }
   return results.sort((a, b) => a.isin.localeCompare(b.isin));
@@ -206,17 +252,21 @@ export function computeRealizedPnl(movements: readonly Movement[]): RealizedPnl[
  * a statement carries a current price, so this is what was paid for what is
  * still owned, and it is the only "invested" figure the data supports.
  */
-export function computeOpenCost(movements: readonly Movement[]): OpenCost[] {
+export function computeOpenCost(
+  movements: readonly Movement[],
+  options?: PortfolioOptions,
+): OpenCost[] {
   const results: OpenCost[] = [];
   for (const [isin, trades] of byIsin(movements)) {
-    const walk = walkLots(trades);
+    const { walk, converted } = walkFor(trades, options);
     const quantity = walk.lots.reduce((total, lot) => total + lot.qty, 0);
     const cost = walk.lots.reduce((total, lot) => total.plus(lot.price.times(lot.qty)), new Big(0));
     results.push({
       isin,
       product: trades[0]?.product ?? null,
       quantity,
-      cost: walk.ambiguous || walk.currency === null ? null : new Money(cost, walk.currency),
+      cost: unusable(walk) ? null : new Money(cost, walk.currency!),
+      converted,
     });
   }
   return results.sort((a, b) => a.isin.localeCompare(b.isin));
@@ -266,12 +316,15 @@ export function externalFlows(movements: readonly Movement[]): Money[] {
 }
 
 /** Roll up a set of movements into a {@link PortfolioSummary}. */
-export function summarizePortfolio(movements: readonly Movement[]): PortfolioSummary {
-  const openCost = computeOpenCost(movements);
+export function summarizePortfolio(
+  movements: readonly Movement[],
+  options?: PortfolioOptions,
+): PortfolioSummary {
+  const openCost = computeOpenCost(movements, options);
 
   return {
     positions: computePositions(movements),
-    realizedPnl: computeRealizedPnl(movements),
+    realizedPnl: computeRealizedPnl(movements, options),
     openCost,
     invested: sumByCurrency(openCost.map((entry) => entry.cost)),
     cashByCurrency: cashByCurrency(movements),

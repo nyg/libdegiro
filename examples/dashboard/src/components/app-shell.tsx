@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dropzone } from '@/components/dropzone';
+import { FxSettings } from '@/components/fx-settings';
 import { FeesSection } from '@/components/sections/fees';
 import { OverviewSection } from '@/components/sections/overview';
 import { CashSection } from '@/components/sections/cash';
@@ -55,6 +56,7 @@ function Header() {
                 Remember on this device
               </Label>
             </div>
+            <FxSettings />
             <Button variant="outline" size="sm" onClick={clear}>
               Load another
             </Button>
@@ -124,7 +126,9 @@ export function AppShell() {
           <a href="https://github.com/nyg/libdegiro" className="underline">
             libdegiro
           </a>
-          . This page has no backend and blocks all network access via its content security policy.
+          . This page has no backend, and its content security policy blocks every request except
+          exchange rates from Frankfurter — a date range and a list of currency codes, never
+          anything from your statement.
           {remember
             ? ' Your statement is stored in this browser until you clear it.'
             : ' Nothing is stored — reloading starts over.'}

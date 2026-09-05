@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { Money, parseDegiroCsv } from 'libdegiro';
+import { ecbRateTable, Money, parseDegiroCsv } from 'libdegiro';
 import { explainFees, feeRatio, feesOf } from '@/lib/analytics/explain';
 
 const csv = readFileSync(new URL('../../../test/fixtures/Account.csv', import.meta.url), 'utf8');
@@ -102,11 +102,29 @@ describe('feesOf', () => {
 describe('feeRatio', () => {
   it('computes a percentage when the fee and the trade share a currency', () => {
     const ratio = feeRatio(Money.of('-1.00', 'EUR'), [Money.of('-100.00', 'EUR')]);
-    expect(ratio).toEqual({ kind: 'pct', value: 0.01, currency: 'EUR' });
+    expect(ratio).toEqual({ kind: 'pct', value: 0.01, currency: 'EUR', converted: false });
   });
 
-  it('refuses to bridge currencies rather than inventing a rate', () => {
+  it('refuses to bridge currencies when no rate table was given', () => {
     const ratio = feeRatio(Money.of('-1.12', 'EUR'), [Money.of('-4036.62', 'CHF')]);
+    expect(ratio).toEqual({ kind: 'unavailable', why: 'currency-mismatch' });
+  });
+
+  it('bridges them at the rate for the day the fee was charged, and says so', () => {
+    const rates = ecbRateTable({ '2025-03-03': { CHF: 0.95 } });
+    const ratio = feeRatio(Money.of('-1.00', 'EUR'), [Money.of('-95.00', 'CHF')], {
+      rates,
+      date: new Date('2025-03-04T00:00:00Z'),
+    });
+    expect(ratio).toEqual({ kind: 'pct', value: 0.01, currency: 'CHF', converted: true });
+  });
+
+  it('stays unavailable when the rate table does not reach the fee’s date', () => {
+    const rates = ecbRateTable({ '2025-03-03': { CHF: 0.95 } });
+    const ratio = feeRatio(Money.of('-1.00', 'EUR'), [Money.of('-95.00', 'CHF')], {
+      rates,
+      date: new Date('2025-03-01T00:00:00Z'),
+    });
     expect(ratio).toEqual({ kind: 'unavailable', why: 'currency-mismatch' });
   });
 

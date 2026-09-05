@@ -4,9 +4,12 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 /**
- * The promise this app makes is that a statement never leaves the browser, so
- * enforce it rather than merely stating it. `connect-src 'none'` blocks every
- * fetch, XHR, WebSocket and beacon.
+ * The promise this app makes is that a *statement* never leaves the browser, so
+ * enforce it rather than merely stating it. `connect-src` names exactly one
+ * host, Frankfurter, and every other fetch, XHR, WebSocket and beacon is
+ * blocked. What can be sent there is a date range and a list of currency codes,
+ * which is all its endpoint accepts — no ISINs, no amounts, no holdings — and
+ * the app only calls it when the FX setting is on.
  *
  * Notes, each of which is load-bearing:
  *  - `style-src` must allow inline styles: Recharts sets them on every element
@@ -22,7 +25,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'none'",
+  'connect-src https://api.frankfurter.dev',
   "base-uri 'none'",
   "form-action 'none'",
   "object-src 'none'",
