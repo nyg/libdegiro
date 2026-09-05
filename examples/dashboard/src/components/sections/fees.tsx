@@ -41,14 +41,32 @@ import { formatDate, formatMoney, formatPercent, formatQuantity } from '@/lib/fo
 
 const RATIO_EXPLANATIONS: Record<Exclude<FeeRatio, { kind: 'pct' }>['why'], string> = {
   'currency-mismatch':
-    'The fee and the trade were booked in different currencies. This dashboard makes no network calls, so it has no exchange rate to bridge them.',
+    'The fee and the trade were booked in different currencies, and no exchange rate was available to bridge them. Turning on ECB rates fills this in.',
   'multi-currency':
     'The order settled in more than one currency, so there is no single base to compare against.',
   'no-consideration': 'The order has no trade amount to compare the fee against.',
 };
 
+const RATIO_CONVERTED =
+  'The fee was booked in another currency and converted into the trade’s at the ECB reference rate for the day it was charged.';
+
 function FeeRatioCell({ ratio }: { ratio: FeeRatio }) {
-  if (ratio.kind === 'pct') return <span className="tabular">{formatPercent(ratio.value)}</span>;
+  if (ratio.kind === 'pct' && !ratio.converted) {
+    return <span className="tabular">{formatPercent(ratio.value)}</span>;
+  }
+
+  if (ratio.kind === 'pct') {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="tabular text-muted-foreground cursor-help underline decoration-dotted">
+            ≈{formatPercent(ratio.value)}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">{RATIO_CONVERTED}</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip>
@@ -109,7 +127,7 @@ function WhyCell({ context }: { context: FeeContext }) {
 }
 
 export function FeesSection() {
-  const { fees, feeTotals, feeContexts, range } = useAnalytics();
+  const { fees, feeTotals, feeContexts, range, fx } = useAnalytics();
   const currencies = feeTotals.currencies;
   const [currency, setCurrency] = useState(() => currencies[0] ?? 'EUR');
 
@@ -338,6 +356,7 @@ export function FeesSection() {
                           context.reason.kind === 'trade' || context.reason.kind === 'fxTrade'
                             ? context.reason.consideration
                             : [],
+                          fx?.rates ? { rates: fx.rates, date: context.fee.date } : undefined,
                         )}
                       />
                     </TableCell>

@@ -264,7 +264,33 @@ Individual helpers (`computePositions`, `computeRealizedPnl`, `computeOpenCost`,
 
 `openCost` is what the unsold lots were bought for, not a valuation — no statement carries a current price. It is `null` under the same conditions as realized P/L.
 
-> **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is multi-currency, incomplete within the statement window, or missing a price — rather than guessing.
+> **FIFO realized P/L is best-effort.** It returns `null` for an instrument whose history is incomplete within the statement window, missing a price, or multi-currency with no exchange rate supplied — rather than guessing.
+
+### Exchange rates
+
+An instrument bought in one currency and sold in another has no P/L without a rate, and a statement carries none that is usable: the `FX` column is a bare decimal with no pair and no direction. Supply a `RateTable` and those instruments become computable.
+
+```ts
+import { ecbRateTable, summarizePortfolio } from 'libdegiro';
+
+const rates = ecbRateTable({
+  '2025-01-02': { CHF: 0.9385, USD: 1.0321 },
+  '2025-01-03': { CHF: 0.9403, USD: 1.0298 },
+});
+
+const summary = summarizePortfolio(movements, { rates, base: 'EUR' });
+summary.realizedPnl[0]?.converted; // true when a rate produced the figure
+```
+
+`ecbRateTable` takes ECB-shaped daily quotes against a pivot (`EUR` by default) and derives every cross rate through it. It carries the last published rate forward across weekends and holidays, and returns `null` before the first published day rather than back-filling. `convert(money, to, on, rates)` is the primitive underneath, and `RateTable` is a one-method interface, so any other source can be plugged in.
+
+Three properties are deliberate:
+
+- **A single-currency instrument is untouched.** The plain walk runs first; a rate is only reached for when that walk failed purely on currency. Booked figures keep their own currency and stay exact.
+- **Each leg converts on its own booking date**, so the result carries the currency move as well as the price move — which is what actually happened to the holder. Converting the difference at one date would quietly drop it.
+- **A rate fixes only what a rate can fix.** A missing price, or a sale with no matching purchase, still yields `null`.
+
+Nothing in the library fetches anything. `RateTable` is pure, and where the numbers come from is the caller's problem.
 
 ## Extensibility
 
@@ -331,7 +357,7 @@ The built-in helpers — `tokenizeCsv`, `mapRow`, `parseTradeDescription`, `Dial
 
 ## Example: a browser dashboard
 
-[`examples/dashboard`](examples/dashboard) is a single-page app that turns an `Account.csv` into a dashboard of fees, cash, positions and income — running entirely in the browser, with a content security policy that blocks all network access. It is live at https://nyg.github.io/libdegiro/.
+[`examples/dashboard`](examples/dashboard) is a single-page app that turns an `Account.csv` into a dashboard of fees, cash, positions and income — running entirely in the browser, with a content security policy that blocks every network request bar one: ECB exchange rates from Frankfurter, which are sent a date range and a list of currency codes and never anything from the statement. It is live at https://nyg.github.io/libdegiro/.
 
 ```sh
 pnpm dashboard:dev

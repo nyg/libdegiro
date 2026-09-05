@@ -1,4 +1,9 @@
-import { summarizePortfolio, type ParseResult, type PortfolioSummary } from 'libdegiro';
+import {
+  summarizePortfolio,
+  type ParseResult,
+  type PortfolioOptions,
+  type PortfolioSummary,
+} from 'libdegiro';
 import { collectFees, totalFees, type FeeCollection, type FeeTotals } from './fees';
 import { explainFees, type FeeContext } from './explain';
 import {
@@ -44,20 +49,21 @@ export interface Analytics {
   /** Currencies that have a cash balance series, sorted. */
   readonly currencies: readonly string[];
   readonly range: DateRange | null;
+  readonly fx: PortfolioOptions | null;
 }
 
-export function buildAnalytics(result: ParseResult): Analytics {
+export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null): Analytics {
   const fees = collectFees(result.movements);
   const unparseableExchanges = fees.entries.filter(
     (entry) => entry.category === 'connectivity' && entry.exchange === null,
   ).length;
 
-  const portfolio = summarizePortfolio(result.movements);
+  const portfolio = summarizePortfolio(result.movements, fx ?? undefined);
 
   return {
     result,
     portfolio,
-    positions: buildPositionRows(portfolio, fees.entries),
+    positions: buildPositionRows(portfolio, fees.entries, fx),
     fees,
     feeTotals: totalFees(fees.entries),
     feeContexts: explainFees(result),
@@ -67,5 +73,6 @@ export function buildAnalytics(result: ParseResult): Analytics {
     health: buildHealthReport(result, unparseableExchanges),
     currencies: balanceCurrencies(result.movements),
     range: statementRange(result.movements),
+    fx: fx ?? null,
   };
 }

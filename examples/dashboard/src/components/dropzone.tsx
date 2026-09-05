@@ -122,8 +122,9 @@ export function Dropzone() {
 
       <p className="text-muted-foreground flex items-center gap-2 text-xs">
         <ShieldCheck className="size-4 shrink-0" aria-hidden />
-        Your statement is parsed in this tab and never uploaded. The page blocks all network access,
-        so you can verify that in your browser&rsquo;s Network tab.
+        Your statement is parsed in this tab and never uploaded. The only request the page can make
+        is for exchange rates, carrying a date range and a list of currency codes; everything else
+        is blocked outright. Verify both in your browser&rsquo;s Network tab.
       </p>
     </div>
   );

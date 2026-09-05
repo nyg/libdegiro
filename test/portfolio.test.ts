@@ -7,6 +7,8 @@ import {
   computeRealizedPnl,
   computePositions,
   cashByCurrency,
+  computeOpenCost,
+  ecbRateTable,
   sumByCurrency,
   Money,
 } from '../src/index';
@@ -69,6 +71,68 @@ const sweepPair = (mirrorFirst: boolean) => {
     '',
   ].join('\n');
 };
+
+const crossCurrency = [
+  HEADER,
+  '01-01-2025,10:00,01-01-2025,TEST,TEST00000002,"Achat 10 TEST@100 USD (TEST00000002)",,USD,"-1000,00",USD,"0,00",o1',
+  '03-01-2025,10:00,03-01-2025,TEST,TEST00000002,"Vente 10 TEST@120 CHF (TEST00000002)",,CHF,"1200,00",CHF,"0,00",o2',
+  '',
+].join('\n');
+
+const crossRates = ecbRateTable({
+  '2025-01-01': { USD: 1.1, CHF: 0.95 },
+  '2025-01-03': { USD: 1.05, CHF: 0.94 },
+});
+
+describe('FIFO realized P/L across currencies', () => {
+  const { movements } = parseDegiroCsv(crossCurrency);
+
+  it('refuses the figure outright when no rate was supplied', () => {
+    const [pnl] = computeRealizedPnl(movements);
+    expect(pnl?.amount).toBeNull();
+    expect(pnl?.converted).toBe(false);
+    expect(computeOpenCost(movements)[0]?.cost).toBeNull();
+  });
+
+  it('recovers it in the base currency when rates are supplied', () => {
+    const [pnl] = computeRealizedPnl(movements, { rates: crossRates, base: 'EUR' });
+    expect(pnl?.amount?.currency).toBe('EUR');
+    expect(pnl?.amount?.amount.toFixed(2)).toBe('367.50');
+    expect(pnl?.converted).toBe(true);
+  });
+
+  it('converts each leg on its own booking date, not the sell date', () => {
+    const atSellDateOnly = ecbRateTable({ '2025-01-03': { USD: 1.05, CHF: 0.94 } });
+    const [pnl] = computeRealizedPnl(movements, { rates: atSellDateOnly, base: 'EUR' });
+    expect(pnl?.amount).toBeNull();
+    expect(pnl?.converted).toBe(false);
+  });
+
+  it('costs the open lots at what they cost on the day they were bought', () => {
+    const buyOnly = parseDegiroCsv(
+      [
+        HEADER,
+        '01-01-2025,10:00,01-01-2025,TEST,TEST00000003,"Achat 10 TEST@100 USD (TEST00000003)",,USD,"-1000,00",USD,"0,00",o1',
+        '03-01-2025,10:00,03-01-2025,TEST,TEST00000003,"Achat 10 TEST@120 CHF (TEST00000003)",,CHF,"-1200,00",CHF,"0,00",o2',
+        '',
+      ].join('\n'),
+    );
+    const [cost] = computeOpenCost(buyOnly.movements, { rates: crossRates, base: 'EUR' });
+    expect(cost?.cost?.amount.toFixed(2)).toBe('2185.69');
+    expect(cost?.converted).toBe(true);
+  });
+});
+
+describe('supplying rates leaves single-currency instruments alone', () => {
+  const { movements } = parseDegiroCsv(synthetic);
+
+  it('reports the booked figure in its own currency, unconverted', () => {
+    const withRates = computeRealizedPnl(movements, { rates: crossRates, base: 'EUR' });
+    expect(withRates).toEqual(computeRealizedPnl(movements));
+    expect(withRates[0]?.amount?.toString()).toBe('250 EUR');
+    expect(withRates[0]?.converted).toBe(false);
+  });
+});
 
 describe('cashByCurrency across a cash-sweep pair', () => {
   // A sweep and its `Virement` mirror are two entries in one running balance and

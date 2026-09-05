@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { Money, parseDegiroCsv, summarizePortfolio } from 'libdegiro';
+import { ecbRateTable, Money, parseDegiroCsv, summarizePortfolio } from 'libdegiro';
 import { collectFees } from '@/lib/analytics/fees';
 import { buildPositionRows } from '@/lib/analytics/positions';
 import {
@@ -20,6 +20,11 @@ const fees = collectFees(result.movements);
 const rows = buildPositionRows(portfolio, fees.entries);
 
 const find = (isin: string) => [...rows.active, ...rows.closed].find((row) => row.isin === isin)!;
+
+const fx = { rates: ecbRateTable({ '2023-01-01': { CHF: 0.95, USD: 1.1 } }), base: 'CHF' };
+const convertedRows = buildPositionRows(summarizePortfolio(result.movements, fx), fees.entries, fx);
+const findConverted = (isin: string) =>
+  [...convertedRows.active, ...convertedRows.closed].find((row) => row.isin === isin)!;
 
 function discrepancy(
   kind: BalanceDiscrepancy['kind'],
@@ -118,6 +123,41 @@ describe('buildPositionRows', () => {
     const row = find('IE00B44Z5B48');
     expect(row.quantity).toBeGreaterThan(0);
     expect(row.cost).toBeNull();
+  });
+});
+
+describe('buildPositionRows with exchange rates', () => {
+  it('recovers the P/L and cost of an instrument traded in two currencies', () => {
+    const row = findConverted('IE00B44Z5B48');
+    expect(find('IE00B44Z5B48').gross).toBeNull();
+    expect(row.gross).toEqual(new Money('-40.025', 'CHF'));
+    expect(row.cost).toEqual(new Money('2590.26', 'CHF'));
+    expect(row.pnlConverted).toBe(true);
+    expect(row.costConverted).toBe(true);
+  });
+
+  it('nets a fee from another currency once a rate can bridge it', () => {
+    const before = find('CH0019852802');
+    const after = findConverted('CH0019852802');
+    expect(before.unappliedFees).toEqual([new Money('-6.78', 'EUR')]);
+    expect(after.unappliedFees).toEqual([]);
+    expect(after.feesConverted).toBe(true);
+    expect(after.appliedFees).toEqual([new Money('-18.391', 'CHF')]);
+    expect(after.net).toEqual(new Money('-583.611', 'CHF'));
+  });
+
+  it('leaves the fee column showing what was actually charged, unconverted', () => {
+    const after = findConverted('CH0019852802');
+    expect(after.fees).toEqual([new Money('-11.95', 'CHF'), new Money('-6.78', 'EUR')]);
+  });
+
+  it('leaves a single-currency instrument booked, exact and unmarked', () => {
+    const before = find('IE00B4L5Y983');
+    const after = findConverted('IE00B4L5Y983');
+    expect(after.cost).toEqual(before.cost);
+    expect(after.net).toEqual(before.net);
+    expect(after.pnlConverted).toBe(false);
+    expect(after.costConverted).toBe(false);
   });
 });
 

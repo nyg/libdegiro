@@ -2,14 +2,19 @@ import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode }
 import { parseDegiroCsv, type ParseResult } from 'libdegiro';
 import { buildAnalytics } from '@/lib/analytics';
 import {
+  DEFAULT_FX,
   forgetEverything,
   forgetStatement,
+  loadFx,
   loadRemember,
   loadStatement,
+  saveFx,
   saveRemember,
   saveStatement,
+  type FxPreference,
 } from '@/lib/storage';
 import { StatementContext, type StatementState } from '@/state/statement-context';
+import { useFxRates } from '@/state/use-fx-rates';
 
 type Action =
   | { type: 'parsing'; fileName: string }
@@ -33,6 +38,7 @@ function reducer(_state: StatementState, action: Action): StatementState {
 export function StatementProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, { status: 'empty' });
   const [remember, setRememberState] = useState(false);
+  const [fxPreference, setFxState] = useState<FxPreference>(DEFAULT_FX);
   const [restoring, setRestoring] = useState(true);
 
   const load = useCallback((csv: string, fileName: string) => {
@@ -52,9 +58,14 @@ export function StatementProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [stored, storedRemember] = await Promise.all([loadStatement(), loadRemember()]);
+      const [stored, storedRemember, storedFx] = await Promise.all([
+        loadStatement(),
+        loadRemember(),
+        loadFx(),
+      ]);
       if (cancelled) return;
       setRememberState(storedRemember);
+      setFxState(storedFx);
       if (storedRemember && stored) load(stored.csv, stored.name);
       setRestoring(false);
     })();
@@ -83,6 +94,11 @@ export function StatementProvider({ children }: { children: ReactNode }) {
     if (!next) void forgetStatement();
   }, []);
 
+  const setFx = useCallback((next: FxPreference) => {
+    setFxState(next);
+    void saveFx(next);
+  }, []);
+
   const clear = useCallback(() => {
     dispatch({ type: 'clear' });
     void forgetStatement();
@@ -94,16 +110,53 @@ export function StatementProvider({ children }: { children: ReactNode }) {
     void forgetEverything();
   }, []);
 
-  // Keyed on the ParseResult identity, so filtering or switching tabs never
-  // recomputes the aggregates.
+  const fx = useFxRates(
+    state.status === 'ready' ? state.result : null,
+    fxPreference.enabled,
+    fxPreference.base,
+    remember,
+  );
+
+  // Keyed on the ParseResult identity and the rate table, so filtering or
+  // switching tabs never recomputes the aggregates but arriving rates do.
   const analytics = useMemo(
-    () => (state.status === 'ready' ? buildAnalytics(state.result) : null),
-    [state],
+    () =>
+      state.status === 'ready'
+        ? buildAnalytics(
+            state.result,
+            fx.rates && fx.base ? { rates: fx.rates, base: fx.base } : null,
+          )
+        : null,
+    [state, fx.rates, fx.base],
   );
 
   const value = useMemo(
-    () => ({ state, analytics, remember, restoring, load, clear, setRemember, forgetAll }),
-    [state, analytics, remember, restoring, load, clear, setRemember, forgetAll],
+    () => ({
+      state,
+      analytics,
+      remember,
+      restoring,
+      fx,
+      fxPreference,
+      load,
+      clear,
+      setRemember,
+      setFx,
+      forgetAll,
+    }),
+    [
+      state,
+      analytics,
+      remember,
+      restoring,
+      fx,
+      fxPreference,
+      load,
+      clear,
+      setRemember,
+      setFx,
+      forgetAll,
+    ],
   );
 
   return <StatementContext value={value}>{children}</StatementContext>;
