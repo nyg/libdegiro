@@ -1,6 +1,16 @@
 # Changelog
 
 
+## [1.0.2](https://github.com/nyg/libdegiro/compare/v1.0.1..v1.0.2) - 2026-09-21
+
+### 🐛 Bug Fixes
+
+- [`80cc264`](https://github.com/nyg/libdegiro/commit/80cc26474281366c135b0a20f3d4e6b594a52c62) Join descriptions DEGIRO wraps onto a continuation row ([#49](https://github.com/nyg/libdegiro/issues/49))
+
+### ⚙️ Miscellaneous
+
+- [`5c333a5`](https://github.com/nyg/libdegiro/commit/5c333a5bbd8d49b8e1186b239581f3e36cbb637a) *(deps)* Update dependency vitest to v5 ([#48](https://github.com/nyg/libdegiro/issues/48))
+
 ## [1.0.1](https://github.com/nyg/libdegiro/compare/v1.0.0..v1.0.1) - 2026-09-05
 
 ### ⛰️  Features
