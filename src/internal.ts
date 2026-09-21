@@ -1,6 +1,7 @@
 import { DialectRegistry, defaultDialects } from './dialects/registry';
-import type { Dialect } from './dialects/types';
-import type { RawRecord } from './records/rawRecord';
+import type { ColumnMap, Dialect } from './dialects/types';
+import type { CsvRow } from './csv/tokenizer';
+import { mapRow, type RawRecord } from './records/rawRecord';
 import { defaultClassifier, type ClassifierRegistry } from './classify/registry';
 import { defaultGroupingStrategies, groupMovements } from './group/grouper';
 import type { GroupingStrategy } from './group/grouper';
@@ -63,6 +64,54 @@ export function dialectIssues(dialect: Dialect, header: readonly string[]): Pars
       { line: 1, raw: [...header] },
     ),
   ];
+}
+
+function isContinuationRow(row: CsvRow, columns: ColumnMap): boolean {
+  return (
+    (row[columns.description] ?? '').trim() !== '' &&
+    row.every((cell, index) => index === columns.description || cell.trim() === '')
+  );
+}
+
+function withContinuation(row: CsvRow, continuation: CsvRow, columns: ColumnMap): CsvRow {
+  const joined = [...row];
+  joined[columns.description] =
+    `${(row[columns.description] ?? '').trim()} ${(continuation[columns.description] ?? '').trim()}`;
+  return joined;
+}
+
+export interface RecordCollector {
+  push(row: CsvRow, line: number): void;
+  finish(): { readonly records: RawRecord[]; readonly issues: ParseIssue[] };
+}
+
+export function createRecordCollector(dialect: Dialect): RecordCollector {
+  const records: RawRecord[] = [];
+  const issues: ParseIssue[] = [];
+  let pending: { row: CsvRow; line: number } | null = null;
+
+  const flush = () => {
+    if (pending === null) return;
+    const result = mapRow(pending.row, dialect, pending.line);
+    issues.push(...result.issues);
+    if (result.record) records.push(result.record);
+    pending = null;
+  };
+
+  return {
+    push(row, line) {
+      if (pending !== null && isContinuationRow(row, dialect.columns)) {
+        pending = { row: withContinuation(pending.row, row, dialect.columns), line: pending.line };
+        return;
+      }
+      flush();
+      pending = { row, line };
+    },
+    finish() {
+      flush();
+      return { records, issues };
+    },
+  };
 }
 
 /** Classify + group already-mapped records into a {@link ParseResult}. */

@@ -1,10 +1,11 @@
 import type { Readable } from 'node:stream';
 import { createCsvRowStream } from '../csv/rowStream';
-import { mapRow, type RawRecord } from '../records/rawRecord';
 import { DegiroError, type ParseIssue } from '../errors';
 import type { Dialect } from '../dialects/types';
 import {
   assembleResult,
+  createRecordCollector,
+  type RecordCollector,
   dialectIssues,
   resolveDialectRegistry,
   type ParseOptions,
@@ -29,8 +30,8 @@ export async function parseDegiroStream(
 
   let dialect: Dialect | null = options.dialect ?? null;
   let header: string[] | null = null;
-  const records: RawRecord[] = [];
-  const issues: ParseIssue[] = [];
+  let collector: RecordCollector | null = null;
+  const headerIssues: ParseIssue[] = [];
   let line = 0;
 
   for await (const row of parser as AsyncIterable<string[]>) {
@@ -38,22 +39,22 @@ export async function parseDegiroStream(
     if (header === null) {
       header = row;
       if (dialect === null) dialect = registry.detect(header);
-      issues.push(...dialectIssues(dialect, header));
+      headerIssues.push(...dialectIssues(dialect, header));
+      collector = createRecordCollector(dialect);
       continue;
     }
-    const result = mapRow(row, dialect!, line);
-    issues.push(...result.issues);
-    if (result.record) records.push(result.record);
+    collector!.push(row, line);
   }
 
   if (dialect === null) {
     throw new DegiroError('Cannot parse an empty CSV stream');
   }
+  const { records, issues } = (collector ?? createRecordCollector(dialect)).finish();
 
   return assembleResult({
     dialect,
     records,
-    issues,
+    issues: [...headerIssues, ...issues],
     classifier: options.classifier,
     strategies: options.groupingStrategies,
   });

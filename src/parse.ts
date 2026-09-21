@@ -1,8 +1,8 @@
 import { tokenizeCsv, type CsvRow } from './csv/tokenizer';
-import { mapRow, type RawRecord } from './records/rawRecord';
-import { DegiroError, type ParseIssue } from './errors';
+import { DegiroError } from './errors';
 import {
   assembleResult,
+  createRecordCollector,
   dialectIssues,
   resolveDialectRegistry,
   type ParseOptions,
@@ -43,18 +43,16 @@ export function parseDegiroCsv(input: string, options: ParseOptions = {}): Parse
   const header = rows[0]!;
   const dialect = options.dialect ?? resolveDialectRegistry(options.dialects).detect(header);
 
-  const records: RawRecord[] = [];
-  const issues: ParseIssue[] = [...dialectIssues(dialect, header)];
+  const collector = createRecordCollector(dialect);
   for (let i = 1; i < rows.length; i++) {
-    const result = mapRow(rows[i]!, dialect, i + 1);
-    issues.push(...result.issues);
-    if (result.record) records.push(result.record);
+    collector.push(rows[i]!, i + 1);
   }
+  const { records, issues } = collector.finish();
 
   return assembleResult({
     dialect,
     records,
-    issues,
+    issues: [...dialectIssues(dialect, header), ...issues],
     classifier: options.classifier,
     strategies: options.groupingStrategies,
   });
