@@ -28,7 +28,7 @@ export interface RawRecord {
   readonly balance: Money | null;
   /** DEGIRO order id linking related legs, or `null`. */
   readonly orderId: string | null;
-  /** Original raw cells, preserved verbatim. */
+  /** Original raw cells, verbatim except that a wrapped description is joined. */
   readonly raw: readonly string[];
 }
 

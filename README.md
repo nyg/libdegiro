@@ -107,7 +107,7 @@ const result = await parseDegiroStream(createReadStream('./Account.csv'));
 | `transactions`                   | Composite `Transaction[]`, sorted newest first                |
 | `issues` / `errors` / `warnings` | Collected `ParseIssue`s (lenient parsing)                     |
 
-Parsing is **lenient**: a row with an unparseable date is dropped and reported as an `error`; a partially-parseable amount becomes a `warning`. The only thrown conditions are an empty input and a header that matches no dialect (`UnknownDialectError`).
+Parsing is **lenient**: a row with an unparseable date is dropped and reported as an `error`; a partially-parseable amount becomes a `warning`. DEGIRO wraps a long description onto a following row that carries nothing but the rest of the text; that row is joined back onto the one above it, so the record keeps the full description and the line number of its first row. The only thrown conditions are an empty input and a header that matches no dialect (`UnknownDialectError`).
 
 ## Supported exports
 
