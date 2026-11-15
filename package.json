@@ -62,7 +62,7 @@
     "papaparse": "5.7.0"
   },
   "devDependencies": {
-    "@nyg/eslint-config": "github:nyg/eslint-config#v1.0.0",
+    "@nyg/eslint-config": "github:nyg/eslint-config#v1.0.1",
     "@types/big.js": "7.0.0",
     "@types/node": "26.6.6",
     "@types/papaparse": "5.5.2",
