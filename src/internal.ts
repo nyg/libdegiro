@@ -1,139 +1,149 @@
-import { DialectRegistry, defaultDialects } from './dialects/registry';
-import type { ColumnMap, Dialect } from './dialects/types';
-import type { CsvRow } from './csv/tokenizer';
-import { mapRow, type RawRecord } from './records/rawRecord';
-import { defaultClassifier, type ClassifierRegistry } from './classify/registry';
-import { defaultGroupingStrategies, groupMovements } from './group/grouper';
-import type { GroupingStrategy } from './group/grouper';
-import type { Transaction } from './group/transaction';
-import type { Movement } from './classify/types';
-import { createIssue, type ParseIssue } from './errors';
+import { type ClassifierRegistry,defaultClassifier } from './classify/registry'
+import type { Movement } from './classify/types'
+import type { CsvRow } from './csv/tokenizer'
+import { defaultDialects,DialectRegistry } from './dialects/registry'
+import type { ColumnMap, Dialect } from './dialects/types'
+import { createIssue, type ParseIssue } from './errors'
+import type { GroupingStrategy } from './group/grouper'
+import { defaultGroupingStrategies, groupMovements } from './group/grouper'
+import type { Transaction } from './group/transaction'
+import { mapRow, type RawRecord } from './records/rawRecord'
 
 /** Options shared by every parsing entry point. */
 export interface ParseOptions {
-  /**
-   * Force a specific dialect, skipping header detection. Useful when a custom
-   * export omits or alters the header.
-   */
-  readonly dialect?: Dialect;
-  /**
-   * Dialects used for header detection. Accepts a {@link DialectRegistry} or a
-   * plain array. Defaults to the built-in dialects.
-   */
-  readonly dialects?: DialectRegistry | readonly Dialect[];
-  /** Classifier registry. Defaults to the built-in matchers. */
-  readonly classifier?: ClassifierRegistry;
-  /** Grouping strategy pipeline. Defaults to the built-in strategies. */
-  readonly groupingStrategies?: readonly GroupingStrategy[];
-  /** CSV field delimiter. Defaults to `,`. */
-  readonly delimiter?: string;
+   /**
+    * Force a specific dialect, skipping header detection. Useful when a custom
+    * export omits or alters the header.
+    */
+   readonly dialect?: Dialect
+   /**
+    * Dialects used for header detection. Accepts a {@link DialectRegistry} or a
+    * plain array. Defaults to the built-in dialects.
+    */
+   readonly dialects?: DialectRegistry | readonly Dialect[]
+   /** Classifier registry. Defaults to the built-in matchers. */
+   readonly classifier?: ClassifierRegistry
+   /** Grouping strategy pipeline. Defaults to the built-in strategies. */
+   readonly groupingStrategies?: readonly GroupingStrategy[]
+   /** CSV field delimiter. Defaults to `,`. */
+   readonly delimiter?: string
 }
 
 /** The full result of parsing a DEGIRO export. */
 export interface ParseResult {
-  /** The dialect used to interpret the file. */
-  readonly dialect: Dialect;
-  /** Normalised rows, in file order (newest first). */
-  readonly records: readonly RawRecord[];
-  /** Classified movements, one per record, in file order. */
-  readonly movements: readonly Movement[];
-  /** Composite transactions, sorted by booking date (newest first). */
-  readonly transactions: readonly Transaction[];
-  /** All collected issues (errors + warnings). */
-  readonly issues: readonly ParseIssue[];
-  /** Issues with severity `error`. */
-  readonly errors: readonly ParseIssue[];
-  /** Issues with severity `warning`. */
-  readonly warnings: readonly ParseIssue[];
+   /** The dialect used to interpret the file. */
+   readonly dialect: Dialect
+   /** Normalised rows, in file order (newest first). */
+   readonly records: readonly RawRecord[]
+   /** Classified movements, one per record, in file order. */
+   readonly movements: readonly Movement[]
+   /** Composite transactions, sorted by booking date (newest first). */
+   readonly transactions: readonly Transaction[]
+   /** All collected issues (errors + warnings). */
+   readonly issues: readonly ParseIssue[]
+   /** Issues with severity `error`. */
+   readonly errors: readonly ParseIssue[]
+   /** Issues with severity `warning`. */
+   readonly warnings: readonly ParseIssue[]
 }
 
 /** Resolve the dialects option into a {@link DialectRegistry}. */
 export function resolveDialectRegistry(dialects: ParseOptions['dialects']): DialectRegistry {
-  if (dialects === undefined) return defaultDialects;
-  if (dialects instanceof DialectRegistry) return dialects;
-  return new DialectRegistry(dialects);
+   if (dialects === undefined) {
+      return defaultDialects
+   }
+   if (dialects instanceof DialectRegistry) {
+      return dialects
+   }
+   return new DialectRegistry(dialects)
 }
 
 export function dialectIssues(dialect: Dialect, header: readonly string[]): ParseIssue[] {
-  if (!dialect.heuristic) return [];
-  return [
-    createIssue(
-      'warning',
-      'map',
-      `No dialect recognised this header, so the "${dialect.id}" fallback read the file by its column layout alone; amounts and dates were interpreted heuristically`,
-      { line: 1, raw: [...header] },
-    ),
-  ];
+   if (!dialect.heuristic) {
+      return []
+   }
+   return [
+      createIssue(
+         'warning',
+         'map',
+         `No dialect recognised this header, so the "${dialect.id}" fallback read the file by its column layout alone; amounts and dates were interpreted heuristically`,
+         { line: 1, raw: [...header] },
+      ),
+   ]
 }
 
 function isContinuationRow(row: CsvRow, columns: ColumnMap): boolean {
-  return (
-    (row[columns.description] ?? '').trim() !== '' &&
-    row.every((cell, index) => index === columns.description || cell.trim() === '')
-  );
+   return (
+      (row[columns.description] ?? '').trim() !== '' &&
+      row.every((cell, index) => index === columns.description || cell.trim() === '')
+   )
 }
 
 function withContinuation(row: CsvRow, continuation: CsvRow, columns: ColumnMap): CsvRow {
-  const joined = [...row];
-  joined[columns.description] =
-    `${(row[columns.description] ?? '').trim()} ${(continuation[columns.description] ?? '').trim()}`;
-  return joined;
+   const joined = [...row]
+   joined[columns.description] =
+      `${(row[columns.description] ?? '').trim()} ${(continuation[columns.description] ?? '').trim()}`
+   return joined
 }
 
 export interface RecordCollector {
-  push(row: CsvRow, line: number): void;
-  finish(): { readonly records: RawRecord[]; readonly issues: ParseIssue[] };
+   push(row: CsvRow, line: number): void
+   finish(): { readonly records: RawRecord[], readonly issues: ParseIssue[] }
 }
 
 export function createRecordCollector(dialect: Dialect): RecordCollector {
-  const records: RawRecord[] = [];
-  const issues: ParseIssue[] = [];
-  let pending: { row: CsvRow; line: number } | null = null;
+   const records: RawRecord[] = []
+   const issues: ParseIssue[] = []
+   let pending: { row: CsvRow, line: number } | null = null
 
-  const flush = () => {
-    if (pending === null) return;
-    const result = mapRow(pending.row, dialect, pending.line);
-    issues.push(...result.issues);
-    if (result.record) records.push(result.record);
-    pending = null;
-  };
-
-  return {
-    push(row, line) {
-      if (pending !== null && isContinuationRow(row, dialect.columns)) {
-        pending = { row: withContinuation(pending.row, row, dialect.columns), line: pending.line };
-        return;
+   const flush = () => {
+      if (pending === null) {
+         return
       }
-      flush();
-      pending = { row, line };
-    },
-    finish() {
-      flush();
-      return { records, issues };
-    },
-  };
+      const result = mapRow(pending.row, dialect, pending.line)
+      issues.push(...result.issues)
+      if (result.record) {
+         records.push(result.record)
+      }
+      pending = null
+   }
+
+   return {
+      push(row, line) {
+         if (pending !== null && isContinuationRow(row, dialect.columns)) {
+            pending = { row: withContinuation(pending.row, row, dialect.columns), line: pending.line }
+            return
+         }
+         flush()
+         pending = { row, line }
+      },
+      finish() {
+         flush()
+         return { records, issues }
+      },
+   }
 }
 
 /** Classify + group already-mapped records into a {@link ParseResult}. */
 export function assembleResult(input: {
-  readonly dialect: Dialect;
-  readonly records: readonly RawRecord[];
-  readonly issues: readonly ParseIssue[];
-  readonly classifier?: ClassifierRegistry;
-  readonly strategies?: readonly GroupingStrategy[];
+   readonly dialect: Dialect
+   readonly records: readonly RawRecord[]
+   readonly issues: readonly ParseIssue[]
+   readonly classifier?: ClassifierRegistry
+   readonly strategies?: readonly GroupingStrategy[]
 }): ParseResult {
-  const classifier = input.classifier ?? defaultClassifier;
-  const strategies = input.strategies ?? defaultGroupingStrategies;
-  const records = [...input.records];
-  const movements = records.map((record) => classifier.classify(record, input.dialect));
-  const transactions = groupMovements(movements, strategies);
-  return {
-    dialect: input.dialect,
-    records,
-    movements,
-    transactions,
-    issues: input.issues,
-    errors: input.issues.filter((issue) => issue.severity === 'error'),
-    warnings: input.issues.filter((issue) => issue.severity === 'warning'),
-  };
+   const classifier = input.classifier ?? defaultClassifier
+   const strategies = input.strategies ?? defaultGroupingStrategies
+   const records = [...input.records]
+   const movements = records.map((record) => classifier.classify(record, input.dialect))
+   const transactions = groupMovements(movements, strategies)
+   return {
+      dialect: input.dialect,
+      records,
+      movements,
+      transactions,
+      issues: input.issues,
+      errors: input.issues.filter((issue) => issue.severity === 'error'),
+      warnings: input.issues.filter((issue) => issue.severity === 'warning'),
+   }
 }

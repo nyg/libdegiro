@@ -1,27 +1,31 @@
-import { tokenizeCsv, type CsvRow } from './csv/tokenizer';
-import { DegiroError } from './errors';
+import { type CsvRow,tokenizeCsv } from './csv/tokenizer'
+import { DegiroError } from './errors'
 import {
-  assembleResult,
-  createRecordCollector,
-  dialectIssues,
-  resolveDialectRegistry,
-  type ParseOptions,
-  type ParseResult,
-} from './internal';
+   assembleResult,
+   createRecordCollector,
+   dialectIssues,
+   type ParseOptions,
+   type ParseResult,
+   resolveDialectRegistry,
+} from './internal'
 
-export type { ParseOptions, ParseResult } from './internal';
+export type { ParseOptions, ParseResult } from './internal'
 
-const FALLBACK_DELIMITERS = [';', '\t'] as const;
+const FALLBACK_DELIMITERS = [';', '\t'] as const
 
 function tokenizeRows(input: string, options: ParseOptions): CsvRow[] {
-  const rows = tokenizeCsv(input, { delimiter: options.delimiter });
-  if (options.delimiter !== undefined || (rows[0]?.length ?? 0) > 1) return rows;
+   const rows = tokenizeCsv(input, { delimiter: options.delimiter })
+   if (options.delimiter !== undefined || (rows[0]?.length ?? 0) > 1) {
+      return rows
+   }
 
-  for (const delimiter of FALLBACK_DELIMITERS) {
-    const retried = tokenizeCsv(input, { delimiter });
-    if ((retried[0]?.length ?? 0) > 1) return retried;
-  }
-  return rows;
+   for (const delimiter of FALLBACK_DELIMITERS) {
+      const retried = tokenizeCsv(input, { delimiter })
+      if ((retried[0]?.length ?? 0) > 1) {
+         return retried
+      }
+   }
+   return rows
 }
 
 /**
@@ -35,25 +39,25 @@ function tokenizeRows(input: string, options: ParseOptions): CsvRow[] {
  * @throws {UnknownDialectError} when no dialect recognises the header.
  */
 export function parseDegiroCsv(input: string, options: ParseOptions = {}): ParseResult {
-  const rows = tokenizeRows(input, options);
-  if (rows.length === 0) {
-    throw new DegiroError('Cannot parse an empty CSV input');
-  }
+   const rows = tokenizeRows(input, options)
+   if (rows.length === 0) {
+      throw new DegiroError('Cannot parse an empty CSV input')
+   }
 
-  const header = rows[0]!;
-  const dialect = options.dialect ?? resolveDialectRegistry(options.dialects).detect(header);
+   const header = rows[0]!
+   const dialect = options.dialect ?? resolveDialectRegistry(options.dialects).detect(header)
 
-  const collector = createRecordCollector(dialect);
-  for (let i = 1; i < rows.length; i++) {
-    collector.push(rows[i]!, i + 1);
-  }
-  const { records, issues } = collector.finish();
+   const collector = createRecordCollector(dialect)
+   for (let i = 1; i < rows.length; i++) {
+      collector.push(rows[i]!, i + 1)
+   }
+   const { records, issues } = collector.finish()
 
-  return assembleResult({
-    dialect,
-    records,
-    issues: [...dialectIssues(dialect, header), ...issues],
-    classifier: options.classifier,
-    strategies: options.groupingStrategies,
-  });
+   return assembleResult({
+      dialect,
+      records,
+      issues: [...dialectIssues(dialect, header), ...issues],
+      classifier: options.classifier,
+      strategies: options.groupingStrategies,
+   })
 }

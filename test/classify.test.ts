@@ -1,270 +1,290 @@
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+import { describe, expect,it } from 'vitest'
+
 import {
-  tokenizeCsv,
-  mapRow,
-  frenchDialect,
-  englishDialect,
-  defaultClassifier,
-  createDefaultClassifierRegistry,
-  type Matcher,
-  type Movement,
-  type RawRecord,
-} from '../src/index';
+   createDefaultClassifierRegistry,
+   defaultClassifier,
+   englishDialect,
+   frenchDialect,
+   mapRow,
+   type Matcher,
+   type Movement,
+   type RawRecord,
+   tokenizeCsv,
+} from '../src/index'
 
 const fixture = readFileSync(
-  fileURLToPath(new URL('./fixtures/Account.csv', import.meta.url)),
-  'utf8',
-);
+   fileURLToPath(new URL('./fixtures/Account.csv', import.meta.url)),
+   'utf8',
+)
 
 function classifyAll(): Movement[] {
-  const rows = tokenizeCsv(fixture).slice(1); // drop header
-  const movements: Movement[] = [];
-  for (const row of rows) {
-    const { record } = mapRow(row, frenchDialect);
-    if (record) movements.push(defaultClassifier.classify(record, frenchDialect));
-  }
-  return movements;
+   const rows = tokenizeCsv(fixture).slice(1) // drop header
+   const movements: Movement[] = []
+   for (const row of rows) {
+      const { record } = mapRow(row, frenchDialect)
+      if (record) {
+         movements.push(defaultClassifier.classify(record, frenchDialect))
+      }
+   }
+   return movements
 }
 
 function record(description: string, overrides: Partial<RawRecord> = {}): RawRecord {
-  return {
-    bookingDate: new Date('2026-01-01T00:00:00Z'),
-    valueDate: new Date('2026-01-01T00:00:00Z'),
-    product: null,
-    isin: null,
-    description,
-    fxRate: null,
-    mutation: null,
-    balance: null,
-    orderId: null,
-    raw: [],
-    ...overrides,
-  };
+   return {
+      bookingDate: new Date('2026-01-01T00:00:00Z'),
+      valueDate: new Date('2026-01-01T00:00:00Z'),
+      product: null,
+      isin: null,
+      description,
+      fxRate: null,
+      mutation: null,
+      balance: null,
+      orderId: null,
+      raw: [],
+      ...overrides,
+   }
 }
 
 describe('classification of the full sample export', () => {
-  it('classifies every row (no unknown movements)', () => {
-    const movements = classifyAll();
-    const unknown = movements.filter((m) => m.kind === 'unknown');
-    expect(unknown).toHaveLength(0);
-  });
+   it('classifies every row (no unknown movements)', () => {
+      const movements = classifyAll()
+      const unknown = movements.filter((m) => m.kind === 'unknown')
+      expect(unknown).toHaveLength(0)
+   })
 
-  it('produces a sensible distribution of movement kinds', () => {
-    const counts = new Map<string, number>();
-    for (const m of classifyAll()) counts.set(m.kind, (counts.get(m.kind) ?? 0) + 1);
-    expect(counts.get('buy')).toBeGreaterThan(0);
-    expect(counts.get('sell')).toBeGreaterThan(0);
-    expect(counts.get('dividend')).toBeGreaterThan(0);
-    expect(counts.get('brokerageFee')).toBeGreaterThan(0);
-    expect(counts.get('cashSweep')).toBeGreaterThan(0);
-    expect(counts.get('cashTransfer')).toBeGreaterThan(0);
-    expect(counts.get('deposit')).toBeGreaterThan(0);
-    expect(counts.get('interest')).toBeGreaterThan(0);
-    expect(counts.get('fxTrade')).toBeGreaterThan(0);
-    expect(counts.get('fxCredit')).toBeGreaterThan(0);
-    expect(counts.get('fxDebit')).toBeGreaterThan(0);
-  });
-});
+   it('produces a sensible distribution of movement kinds', () => {
+      const counts = new Map<string, number>()
+      for (const m of classifyAll()) {
+         counts.set(m.kind, (counts.get(m.kind) ?? 0) + 1)
+      }
+      expect(counts.get('buy')).toBeGreaterThan(0)
+      expect(counts.get('sell')).toBeGreaterThan(0)
+      expect(counts.get('dividend')).toBeGreaterThan(0)
+      expect(counts.get('brokerageFee')).toBeGreaterThan(0)
+      expect(counts.get('cashSweep')).toBeGreaterThan(0)
+      expect(counts.get('cashTransfer')).toBeGreaterThan(0)
+      expect(counts.get('deposit')).toBeGreaterThan(0)
+      expect(counts.get('interest')).toBeGreaterThan(0)
+      expect(counts.get('fxTrade')).toBeGreaterThan(0)
+      expect(counts.get('fxCredit')).toBeGreaterThan(0)
+      expect(counts.get('fxDebit')).toBeGreaterThan(0)
+   })
+})
 
 describe('individual matchers', () => {
-  const classify = (rec: RawRecord) => defaultClassifier.classify(rec, frenchDialect);
+   const classify = (rec: RawRecord) => defaultClassifier.classify(rec, frenchDialect)
 
-  it('parses a security buy', () => {
-    const m = classify(
-      record('Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)', {
-        product: 'ISHARES CORE MSCI WORLD UCITS ETF',
-        isin: 'IE00B4L5Y983',
-        mutation: undefined,
-      }),
-    );
-    expect(m.kind).toBe('buy');
-    if (m.kind === 'buy') {
-      expect(m.quantity).toBe(42);
-      expect(m.unitPrice?.toString()).toBe('96.11 CHF');
-      expect(m.isin).toBe('IE00B4L5Y983');
-    }
-  });
+   it('parses a security buy', () => {
+      const m = classify(
+         record('Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)', {
+            product: 'ISHARES CORE MSCI WORLD UCITS ETF',
+            isin: 'IE00B4L5Y983',
+            mutation: undefined,
+         }),
+      )
+      expect(m.kind).toBe('buy')
+      if (m.kind === 'buy') {
+         expect(m.quantity).toBe(42)
+         expect(m.unitPrice?.toString()).toBe('96.11 CHF')
+         expect(m.isin).toBe('IE00B4L5Y983')
+      }
+   })
 
-  it('parses a sell with a price that has no decimals', () => {
-    const m = classify(record('Vente 35 SPDR MSCI ACWI UCITS ETF USD Dis@120 CHF (IE00B44Z5B48)'));
-    expect(m.kind).toBe('sell');
-    if (m.kind === 'sell') {
-      expect(m.quantity).toBe(35);
-      expect(m.unitPrice?.toString()).toBe('120 CHF');
-    }
-  });
+   it('parses a sell with a price that has no decimals', () => {
+      const m = classify(record('Vente 35 SPDR MSCI ACWI UCITS ETF USD Dis@120 CHF (IE00B44Z5B48)'))
+      expect(m.kind).toBe('sell')
+      if (m.kind === 'sell') {
+         expect(m.quantity).toBe(35)
+         expect(m.unitPrice?.toString()).toBe('120 CHF')
+      }
+   })
 
-  it('parses an FX pair trade with a thousands-separated quantity', () => {
-    const m = classify(record('Achat 4 800 EUR/CHF@0,9412 CHF ()', { product: 'EUR/CHF' }));
-    expect(m.kind).toBe('fxTrade');
-    if (m.kind === 'fxTrade') {
-      expect(m.pair).toBe('EUR/CHF');
-      expect(m.quantity).toBe(4800);
-      expect(m.rate?.toString()).toBe('0.9412 CHF');
-      expect(m.settlement).toBe(false);
-    }
-  });
+   it('parses an FX pair trade with a thousands-separated quantity', () => {
+      const m = classify(record('Achat 4 800 EUR/CHF@0,9412 CHF ()', { product: 'EUR/CHF' }))
+      expect(m.kind).toBe('fxTrade')
+      if (m.kind === 'fxTrade') {
+         expect(m.pair).toBe('EUR/CHF')
+         expect(m.quantity).toBe(4800)
+         expect(m.rate?.toString()).toBe('0.9412 CHF')
+         expect(m.settlement).toBe(false)
+      }
+   })
 
-  it('flags the FX settlement leg', () => {
-    const m = classify(record('Règlement transaction devise: Vente 4 800 EUR/CHF@0,9412 CHF ()'));
-    expect(m.kind).toBe('fxTrade');
-    if (m.kind === 'fxTrade') expect(m.settlement).toBe(true);
-  });
+   it('flags the FX settlement leg', () => {
+      const m = classify(record('Règlement transaction devise: Vente 4 800 EUR/CHF@0,9412 CHF ()'))
+      expect(m.kind).toBe('fxTrade')
+      if (m.kind === 'fxTrade') {
+         expect(m.settlement).toBe(true)
+      }
+   })
 
-  it('distinguishes FX credit and debit legs despite accent differences', () => {
-    expect(classify(record('Operation de change - Crédit')).kind).toBe('fxCredit');
-    expect(classify(record('Opération de change - Débit')).kind).toBe('fxDebit');
-  });
+   it('distinguishes FX credit and debit legs despite accent differences', () => {
+      expect(classify(record('Operation de change - Crédit')).kind).toBe('fxCredit')
+      expect(classify(record('Opération de change - Débit')).kind).toBe('fxDebit')
+   })
 
-  it('classifies dividend, dividend tax and capital return', () => {
-    expect(classify(record('Dividende')).kind).toBe('dividend');
-    expect(classify(record('Impôts sur dividende')).kind).toBe('dividendTax');
-    expect(classify(record('Remboursement de capital')).kind).toBe('capitalReturn');
-  });
+   it('classifies dividend, dividend tax and capital return', () => {
+      expect(classify(record('Dividende')).kind).toBe('dividend')
+      expect(classify(record('Impôts sur dividende')).kind).toBe('dividendTax')
+      expect(classify(record('Remboursement de capital')).kind).toBe('capitalReturn')
+   })
 
-  it('classifies fees and extracts the connectivity year', () => {
-    expect(classify(record('Frais DEGIRO de courtage et/ou de parties tierces')).kind).toBe(
-      'brokerageFee',
-    );
-    const conn = classify(record('Frais de connexion aux places boursières 2025 (- - FX)'));
-    expect(conn.kind).toBe('connectivityFee');
-    if (conn.kind === 'connectivityFee') expect(conn.year).toBe(2025);
-  });
+   it('classifies fees and extracts the connectivity year', () => {
+      expect(classify(record('Frais DEGIRO de courtage et/ou de parties tierces')).kind).toBe(
+         'brokerageFee',
+      )
+      const conn = classify(record('Frais de connexion aux places boursières 2025 (- - FX)'))
+      expect(conn.kind).toBe('connectivityFee')
+      if (conn.kind === 'connectivityFee') {
+         expect(conn.year).toBe(2025)
+      }
+   })
 
-  it('classifies cash transfers with direction and stated amount', () => {
-    const out = classify(
-      record('Virement vers votre Compte Espèces à la flatexDEGIRO Bank: 6 770,1 CHF'),
-    );
-    expect(out.kind).toBe('cashTransfer');
-    if (out.kind === 'cashTransfer') {
-      expect(out.direction).toBe('toCashAccount');
-      expect(out.statedAmount?.toString()).toBe('6770.1 CHF');
-    }
-    const incoming = classify(
-      record('Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 213,25 EUR'),
-    );
-    if (incoming.kind === 'cashTransfer') expect(incoming.direction).toBe('fromCashAccount');
-  });
+   it('classifies cash transfers with direction and stated amount', () => {
+      const out = classify(
+         record('Virement vers votre Compte Espèces à la flatexDEGIRO Bank: 6 770,1 CHF'),
+      )
+      expect(out.kind).toBe('cashTransfer')
+      if (out.kind === 'cashTransfer') {
+         expect(out.direction).toBe('toCashAccount')
+         expect(out.statedAmount?.toString()).toBe('6770.1 CHF')
+      }
+      const incoming = classify(
+         record('Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 213,25 EUR'),
+      )
+      if (incoming.kind === 'cashTransfer') {
+         expect(incoming.direction).toBe('fromCashAccount')
+      }
+   })
 
-  it('classifies cash sweep, deposit and interest', () => {
-    expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep');
-    expect(classify(record('Versement de fonds')).kind).toBe('deposit');
-    expect(classify(record('Flatex Interest Income')).kind).toBe('interest');
-  });
+   it('classifies cash sweep, deposit and interest', () => {
+      expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep')
+      expect(classify(record('Versement de fonds')).kind).toBe('deposit')
+      expect(classify(record('Flatex Interest Income')).kind).toBe('interest')
+   })
 
-  it('falls back to unknown for unrecognised descriptions', () => {
-    expect(classify(record('Some brand new DEGIRO movement')).kind).toBe('unknown');
-  });
-});
+   it('falls back to unknown for unrecognised descriptions', () => {
+      expect(classify(record('Some brand new DEGIRO movement')).kind).toBe('unknown')
+   })
+})
 
 describe('English descriptions', () => {
-  const classify = (rec: RawRecord) => defaultClassifier.classify(rec, englishDialect);
+   const classify = (rec: RawRecord) => defaultClassifier.classify(rec, englishDialect)
 
-  it('parses a security buy and sell', () => {
-    const buy = classify(
-      record('Buy 1,060 SMI ETF@106.02 CHF (CH0019852802)', { isin: 'CH0019852802' }),
-    );
-    expect(buy.kind).toBe('buy');
-    if (buy.kind === 'buy') {
-      expect(buy.quantity).toBe(1060);
-      expect(buy.unitPrice?.toString()).toBe('106.02 CHF');
-    }
-    expect(classify(record('Sell 10 VWCE@120.36 EUR (IE00BK5BQT80)')).kind).toBe('sell');
-  });
+   it('parses a security buy and sell', () => {
+      const buy = classify(
+         record('Buy 1,060 SMI ETF@106.02 CHF (CH0019852802)', { isin: 'CH0019852802' }),
+      )
+      expect(buy.kind).toBe('buy')
+      if (buy.kind === 'buy') {
+         expect(buy.quantity).toBe(1060)
+         expect(buy.unitPrice?.toString()).toBe('106.02 CHF')
+      }
+      expect(classify(record('Sell 10 VWCE@120.36 EUR (IE00BK5BQT80)')).kind).toBe('sell')
+   })
 
-  it('parses FX pair trades and their settlement leg', () => {
-    const fx = classify(record('Buy 4,800 EUR/CHF@0.9412 CHF ()'));
-    expect(fx.kind).toBe('fxTrade');
-    if (fx.kind === 'fxTrade') {
-      expect(fx.pair).toBe('EUR/CHF');
-      expect(fx.quantity).toBe(4800);
-      expect(fx.settlement).toBe(false);
-    }
-    const settled = classify(
-      record('Currency transaction settlement: Sell 4,800 EUR/CHF@0.9412 CHF ()'),
-    );
-    if (settled.kind === 'fxTrade') expect(settled.settlement).toBe(true);
-  });
+   it('parses FX pair trades and their settlement leg', () => {
+      const fx = classify(record('Buy 4,800 EUR/CHF@0.9412 CHF ()'))
+      expect(fx.kind).toBe('fxTrade')
+      if (fx.kind === 'fxTrade') {
+         expect(fx.pair).toBe('EUR/CHF')
+         expect(fx.quantity).toBe(4800)
+         expect(fx.settlement).toBe(false)
+      }
+      const settled = classify(
+         record('Currency transaction settlement: Sell 4,800 EUR/CHF@0.9412 CHF ()'),
+      )
+      if (settled.kind === 'fxTrade') {
+         expect(settled.settlement).toBe(true)
+      }
+   })
 
-  it('distinguishes FX credit and debit legs in both spellings', () => {
-    expect(classify(record('Currency Exchange - Credit')).kind).toBe('fxCredit');
-    expect(classify(record('Currency Exchange (Debit)')).kind).toBe('fxDebit');
-    expect(classify(record('FX Credit')).kind).toBe('fxCredit');
-    expect(classify(record('FX Debit')).kind).toBe('fxDebit');
-  });
+   it('distinguishes FX credit and debit legs in both spellings', () => {
+      expect(classify(record('Currency Exchange - Credit')).kind).toBe('fxCredit')
+      expect(classify(record('Currency Exchange (Debit)')).kind).toBe('fxDebit')
+      expect(classify(record('FX Credit')).kind).toBe('fxCredit')
+      expect(classify(record('FX Debit')).kind).toBe('fxDebit')
+   })
 
-  it('classifies dividend, dividend tax and capital return', () => {
-    expect(classify(record('Dividend')).kind).toBe('dividend');
-    expect(classify(record('Dividend Tax')).kind).toBe('dividendTax');
-    expect(classify(record('Return of Capital')).kind).toBe('capitalReturn');
-    expect(classify(record('Capital Return')).kind).toBe('capitalReturn');
-  });
+   it('classifies dividend, dividend tax and capital return', () => {
+      expect(classify(record('Dividend')).kind).toBe('dividend')
+      expect(classify(record('Dividend Tax')).kind).toBe('dividendTax')
+      expect(classify(record('Return of Capital')).kind).toBe('capitalReturn')
+      expect(classify(record('Capital Return')).kind).toBe('capitalReturn')
+   })
 
-  it('classifies fees and extracts the connectivity year', () => {
-    expect(classify(record('DEGIRO Transaction and/or Third Party Fees')).kind).toBe(
-      'brokerageFee',
-    );
-    const conn = classify(record('DEGIRO Exchange Connection Fee 2024 (Euronext Amsterdam - EAM)'));
-    expect(conn.kind).toBe('connectivityFee');
-    if (conn.kind === 'connectivityFee') expect(conn.year).toBe(2024);
-    expect(classify(record('DEGIRO Exchange Connectivity Fee 2024')).kind).toBe('connectivityFee');
-  });
+   it('classifies fees and extracts the connectivity year', () => {
+      expect(classify(record('DEGIRO Transaction and/or Third Party Fees')).kind).toBe(
+         'brokerageFee',
+      )
+      const conn = classify(record('DEGIRO Exchange Connection Fee 2024 (Euronext Amsterdam - EAM)'))
+      expect(conn.kind).toBe('connectivityFee')
+      if (conn.kind === 'connectivityFee') {
+         expect(conn.year).toBe(2024)
+      }
+      expect(classify(record('DEGIRO Exchange Connectivity Fee 2024')).kind).toBe('connectivityFee')
+   })
 
-  it('classifies cash transfers with direction and stated amount', () => {
-    const out = classify(record('Transfer to your Cash Account at flatex Bank: 6,770.10 CHF'));
-    expect(out.kind).toBe('cashTransfer');
-    if (out.kind === 'cashTransfer') {
-      expect(out.direction).toBe('toCashAccount');
-      expect(out.statedAmount?.toString()).toBe('6770.1 CHF');
-    }
-    const incoming = classify(record('Transfer from your Cash Account at flatex Bank: 213.25 EUR'));
-    if (incoming.kind === 'cashTransfer') expect(incoming.direction).toBe('fromCashAccount');
-  });
+   it('classifies cash transfers with direction and stated amount', () => {
+      const out = classify(record('Transfer to your Cash Account at flatex Bank: 6,770.10 CHF'))
+      expect(out.kind).toBe('cashTransfer')
+      if (out.kind === 'cashTransfer') {
+         expect(out.direction).toBe('toCashAccount')
+         expect(out.statedAmount?.toString()).toBe('6770.1 CHF')
+      }
+      const incoming = classify(record('Transfer from your Cash Account at flatex Bank: 213.25 EUR'))
+      if (incoming.kind === 'cashTransfer') {
+         expect(incoming.direction).toBe('fromCashAccount')
+      }
+   })
 
-  it('prefers a cash transfer over a deposit when the row names the cash account', () => {
-    expect(classify(record('Deposit to your Cash Account at flatex Bank: 213.25 EUR')).kind).toBe(
-      'cashTransfer',
-    );
-    expect(
-      classify(record('Withdrawal from your Cash Account at flatex Bank: 213.25 EUR')).kind,
-    ).toBe('cashTransfer');
-  });
+   it('prefers a cash transfer over a deposit when the row names the cash account', () => {
+      expect(classify(record('Deposit to your Cash Account at flatex Bank: 213.25 EUR')).kind).toBe(
+         'cashTransfer',
+      )
+      expect(
+         classify(record('Withdrawal from your Cash Account at flatex Bank: 213.25 EUR')).kind,
+      ).toBe('cashTransfer')
+   })
 
-  it('classifies deposits and withdrawals, however they are qualified', () => {
-    expect(classify(record('Deposit')).kind).toBe('deposit');
-    expect(classify(record('flatex Deposit')).kind).toBe('deposit');
-    expect(classify(record('Withdrawal')).kind).toBe('withdrawal');
-    expect(classify(record('Processed Flatex Withdrawal')).kind).toBe('withdrawal');
-  });
+   it('classifies deposits and withdrawals, however they are qualified', () => {
+      expect(classify(record('Deposit')).kind).toBe('deposit')
+      expect(classify(record('flatex Deposit')).kind).toBe('deposit')
+      expect(classify(record('Withdrawal')).kind).toBe('withdrawal')
+      expect(classify(record('Processed Flatex Withdrawal')).kind).toBe('withdrawal')
+   })
 
-  it('does not mistake a French export read through the English dialect', () => {
-    expect(classify(record('Versement de fonds')).kind).toBe('deposit');
-    expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep');
-  });
-});
+   it('does not mistake a French export read through the English dialect', () => {
+      expect(classify(record('Versement de fonds')).kind).toBe('deposit')
+      expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep')
+   })
+})
 
 describe('classifier extensibility', () => {
-  it('classifies an otherwise-unknown description via a custom matcher', () => {
-    // A referral bonus is not understood by the built-ins...
-    expect(defaultClassifier.classify(record('Récompense de parrainage'), frenchDialect).kind).toBe(
-      'unknown',
-    );
+   it('classifies an otherwise-unknown description via a custom matcher', () => {
+      // A referral bonus is not understood by the built-ins...
+      expect(defaultClassifier.classify(record('Récompense de parrainage'), frenchDialect).kind).toBe(
+         'unknown',
+      )
 
-    // ...until we register a higher-priority matcher that treats it as a deposit.
-    const referralMatcher: Matcher = {
-      name: 'referral-bonus',
-      priority: 100,
-      match({ record: rec }) {
-        if (!/^Récompense de parrainage/i.test(rec.description)) return null;
-        return { kind: 'deposit', amount: rec.mutation, record: rec };
-      },
-    };
-    const registry = createDefaultClassifierRegistry().register(referralMatcher);
-    expect(registry.all()[0]?.name).toBe('referral-bonus');
-    expect(registry.classify(record('Récompense de parrainage'), frenchDialect).kind).toBe(
-      'deposit',
-    );
-  });
-});
+      // ...until we register a higher-priority matcher that treats it as a deposit.
+      const referralMatcher: Matcher = {
+         name: 'referral-bonus',
+         priority: 100,
+         match({ record: rec }) {
+            if (!/^Récompense de parrainage/i.test(rec.description)) {
+               return null
+            }
+            return { kind: 'deposit', amount: rec.mutation, record: rec }
+         },
+      }
+      const registry = createDefaultClassifierRegistry().register(referralMatcher)
+      expect(registry.all()[0]?.name).toBe('referral-bonus')
+      expect(registry.classify(record('Récompense de parrainage'), frenchDialect).kind).toBe(
+         'deposit',
+      )
+   })
+})

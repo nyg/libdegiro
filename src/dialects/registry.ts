@@ -1,14 +1,14 @@
-import type { CsvRow } from '../csv/tokenizer';
-import { UnknownDialectError } from '../errors';
-import type { Dialect } from './types';
-import { frenchDialect } from './fr';
-import { englishDialect } from './en';
-import { genericDialect } from './generic';
+import type { CsvRow } from '../csv/tokenizer'
+import { UnknownDialectError } from '../errors'
+import { englishDialect } from './en'
+import { frenchDialect } from './fr'
+import { genericDialect } from './generic'
+import type { Dialect } from './types'
 
 /** Options for registering a dialect. */
 export interface RegisterDialectOptions {
-  /** Insert at the front so it is matched before existing dialects. */
-  readonly prepend?: boolean;
+   /** Insert at the front so it is matched before existing dialects. */
+   readonly prepend?: boolean
 }
 
 /**
@@ -18,54 +18,54 @@ export interface RegisterDialectOptions {
  * returns the first dialect whose {@link Dialect.matches} accepts the header.
  */
 export class DialectRegistry {
-  private readonly dialects: Dialect[] = [];
+   private readonly dialects: Dialect[] = []
 
-  constructor(initial: readonly Dialect[] = []) {
-    this.dialects.push(...initial);
-  }
+   constructor(initial: readonly Dialect[] = []) {
+      this.dialects.push(...initial)
+   }
 
-  /** Register a dialect. By default it is appended (lowest precedence). */
-  register(dialect: Dialect, options: RegisterDialectOptions = {}): this {
-    if (options.prepend) {
-      this.dialects.unshift(dialect);
-    } else {
-      this.dialects.push(dialect);
-    }
-    return this;
-  }
+   /** Register a dialect. By default it is appended (lowest precedence). */
+   register(dialect: Dialect, options: RegisterDialectOptions = {}): this {
+      if (options.prepend) {
+         this.dialects.unshift(dialect)
+      } else {
+         this.dialects.push(dialect)
+      }
+      return this
+   }
 
-  /** All registered dialects, in matching order. */
-  all(): readonly Dialect[] {
-    return [...this.dialects];
-  }
+   /** All registered dialects, in matching order. */
+   all(): readonly Dialect[] {
+      return [...this.dialects]
+   }
 
-  /** Detect the dialect for a header row, or `undefined` if none matches. */
-  find(header: CsvRow): Dialect | undefined {
-    return this.dialects.find((dialect) => dialect.matches(header));
-  }
+   /** Detect the dialect for a header row, or `undefined` if none matches. */
+   find(header: CsvRow): Dialect | undefined {
+      return this.dialects.find((dialect) => dialect.matches(header))
+   }
 
-  /**
-   * Detect the dialect for a header row.
-   * @throws {UnknownDialectError} when no registered dialect matches.
-   */
-  detect(header: CsvRow): Dialect {
-    const dialect = this.find(header);
-    if (!dialect) {
-      throw new UnknownDialectError(header);
-    }
-    return dialect;
-  }
+   /**
+    * Detect the dialect for a header row.
+    * @throws {UnknownDialectError} when no registered dialect matches.
+    */
+   detect(header: CsvRow): Dialect {
+      const dialect = this.find(header)
+      if (!dialect) {
+         throw new UnknownDialectError(header)
+      }
+      return dialect
+   }
 
-  /** A shallow copy of this registry, useful for per-call customisation. */
-  clone(): DialectRegistry {
-    return new DialectRegistry(this.dialects);
-  }
+   /** A shallow copy of this registry, useful for per-call customisation. */
+   clone(): DialectRegistry {
+      return new DialectRegistry(this.dialects)
+   }
 }
 
 /** Registry pre-populated with all built-in dialects. */
 export function createDefaultDialectRegistry(): DialectRegistry {
-  return new DialectRegistry([frenchDialect, englishDialect, genericDialect]);
+   return new DialectRegistry([frenchDialect, englishDialect, genericDialect])
 }
 
 /** Shared registry containing the built-in dialects. */
-export const defaultDialects = createDefaultDialectRegistry();
+export const defaultDialects = createDefaultDialectRegistry()

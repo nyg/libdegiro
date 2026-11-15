@@ -51,7 +51,6 @@
     "test": "pnpm build && vitest run",
     "test:watch": "pnpm build && vitest",
     "lint": "eslint .",
-    "format": "prettier --write .",
     "prepublishOnly": "pnpm test",
     "dashboard:dev": "pnpm --filter @libdegiro/dashboard dev",
     "dashboard:build": "pnpm --filter @libdegiro/dashboard build",
@@ -63,18 +62,13 @@
     "papaparse": "5.7.0"
   },
   "devDependencies": {
-    "@eslint/js": "10.0.1",
+    "@nyg/eslint-config": "github:nyg/eslint-config#v1.0.1",
     "@types/big.js": "7.0.0",
     "@types/node": "26.6.6",
     "@types/papaparse": "5.5.2",
     "eslint": "10.7.0",
-    "eslint-plugin-react-hooks": "7.1.1",
-    "eslint-plugin-react-refresh": "0.5.7",
-    "globals": "17.13.0",
-    "prettier": "3.9.10",
     "tsdown": "0.23.3",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.72.1",
     "vitest": "5.0.5"
   }
 }

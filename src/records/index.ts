@@ -1,1 +1,1 @@
-export * from './rawRecord';
+export * from './rawRecord'

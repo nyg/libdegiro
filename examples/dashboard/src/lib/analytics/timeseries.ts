@@ -1,9 +1,9 @@
-import { Money, convert, type Movement, type RateTable } from 'libdegiro';
+import { convert, Money, type Movement, type RateTable } from 'libdegiro'
 
 export interface BalancePoint {
-  readonly date: Date;
-  readonly balance: Money;
-  readonly line: number | null;
+   readonly date: Date
+   readonly balance: Money
+   readonly line: number | null
 }
 
 /**
@@ -24,23 +24,25 @@ export interface BalancePoint {
  *    simply produces no EUR point. That is a real gap, not missing data to fill.
  */
 export function balanceSeries(movements: readonly Movement[], currency: string): BalancePoint[] {
-  const points: BalancePoint[] = [];
+   const points: BalancePoint[] = []
 
-  for (const movement of [...movements].reverse()) {
-    const { balance, bookingDate, line } = movement.record;
-    if (balance === null || balance.currency !== currency) continue;
+   for (const movement of [...movements].reverse()) {
+      const { balance, bookingDate, line } = movement.record
+      if (balance === null || balance.currency !== currency) {
+         continue
+      }
 
-    // Several rows can share a timestamp; the last one chronologically is the
-    // balance that stood at the end of that instant.
-    const previous = points[points.length - 1];
-    if (previous && previous.date.getTime() === bookingDate.getTime()) {
-      points[points.length - 1] = { date: bookingDate, balance, line: line ?? null };
-      continue;
-    }
-    points.push({ date: bookingDate, balance, line: line ?? null });
-  }
+      // Several rows can share a timestamp; the last one chronologically is the
+      // balance that stood at the end of that instant.
+      const previous = points[points.length - 1]
+      if (previous && previous.date.getTime() === bookingDate.getTime()) {
+         points[points.length - 1] = { date: bookingDate, balance, line: line ?? null }
+         continue
+      }
+      points.push({ date: bookingDate, balance, line: line ?? null })
+   }
 
-  return points;
+   return points
 }
 
 /**
@@ -58,92 +60,107 @@ export function balanceSeries(movements: readonly Movement[], currency: string):
  * midnight, so it still sits where the activity happened.
  */
 export function dailyBalanceSeries(
-  movements: readonly Movement[],
-  currency: string,
+   movements: readonly Movement[],
+   currency: string,
 ): BalancePoint[] {
-  const days: BalancePoint[] = [];
+   const days: BalancePoint[] = []
 
-  for (const point of balanceSeries(movements, currency)) {
-    const previous = days[days.length - 1];
-    if (previous && isSameUtcDay(previous.date, point.date)) {
-      days[days.length - 1] = point;
-      continue;
-    }
-    days.push(point);
-  }
+   for (const point of balanceSeries(movements, currency)) {
+      const previous = days[days.length - 1]
+      if (previous && isSameUtcDay(previous.date, point.date)) {
+         days[days.length - 1] = point
+         continue
+      }
+      days.push(point)
+   }
 
-  return days;
+   return days
 }
 
 export function totalBalanceSeries(
-  movements: readonly Movement[],
-  base: string,
-  rates: RateTable,
+   movements: readonly Movement[],
+   base: string,
+   rates: RateTable,
 ): BalancePoint[] {
-  const points = balanceCurrencies(movements)
-    .flatMap((currency) => dailyBalanceSeries(movements, currency))
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+   const points = balanceCurrencies(movements)
+      .flatMap((currency) => dailyBalanceSeries(movements, currency))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
 
-  const standing = new Map<string, Money>();
-  const days: BalancePoint[] = [];
+   const standing = new Map<string, Money>()
+   const days: BalancePoint[] = []
 
-  for (const point of points) {
-    standing.set(point.balance.currency, point.balance);
-    const total = sumConverted(standing.values(), base, point.date, rates);
-    if (total === null) continue;
+   for (const point of points) {
+      standing.set(point.balance.currency, point.balance)
+      const total = sumConverted(standing.values(), base, point.date, rates)
+      if (total === null) {
+         continue
+      }
 
-    const previous = days[days.length - 1];
-    const day = { date: point.date, balance: total, line: null };
-    if (previous && isSameUtcDay(previous.date, point.date)) days[days.length - 1] = day;
-    else days.push(day);
-  }
+      const previous = days[days.length - 1]
+      const day = { date: point.date, balance: total, line: null }
+      if (previous && isSameUtcDay(previous.date, point.date)) {
+         days[days.length - 1] = day
+      } else {
+         days.push(day)
+      }
+   }
 
-  return days;
+   return days
 }
 
 function sumConverted(
-  amounts: Iterable<Money>,
-  base: string,
-  on: Date,
-  rates: RateTable,
+   amounts: Iterable<Money>,
+   base: string,
+   on: Date,
+   rates: RateTable,
 ): Money | null {
-  let total = Money.zero(base);
-  for (const amount of amounts) {
-    const inBase = convert(amount, base, on, rates);
-    if (inBase === null) return null;
-    total = total.add(inBase);
-  }
-  return total;
+   let total = Money.zero(base)
+   for (const amount of amounts) {
+      const inBase = convert(amount, base, on, rates)
+      if (inBase === null) {
+         return null
+      }
+      total = total.add(inBase)
+   }
+   return total
 }
 
 const isSameUtcDay = (a: Date, b: Date): boolean =>
-  a.getUTCFullYear() === b.getUTCFullYear() &&
-  a.getUTCMonth() === b.getUTCMonth() &&
-  a.getUTCDate() === b.getUTCDate();
+   a.getUTCFullYear() === b.getUTCFullYear() &&
+   a.getUTCMonth() === b.getUTCMonth() &&
+   a.getUTCDate() === b.getUTCDate()
 
 /** Currencies that have at least one balance point, sorted. */
 export function balanceCurrencies(movements: readonly Movement[]): string[] {
-  const currencies = new Set<string>();
-  for (const movement of movements) {
-    if (movement.record.balance) currencies.add(movement.record.balance.currency);
-  }
-  return [...currencies].sort();
+   const currencies = new Set<string>()
+   for (const movement of movements) {
+      if (movement.record.balance) {
+         currencies.add(movement.record.balance.currency)
+      }
+   }
+   return [...currencies].sort()
 }
 
 export interface DateRange {
-  readonly from: Date;
-  readonly to: Date;
+   readonly from: Date
+   readonly to: Date
 }
 
 /** The span the statement itself covers, by booking date. */
 export function statementRange(movements: readonly Movement[]): DateRange | null {
-  if (movements.length === 0) return null;
-  let from = movements[0]!.record.bookingDate;
-  let to = movements[0]!.record.bookingDate;
-  for (const movement of movements) {
-    const date = movement.record.bookingDate;
-    if (date < from) from = date;
-    if (date > to) to = date;
-  }
-  return { from, to };
+   if (movements.length === 0) {
+      return null
+   }
+   let from = movements[0]!.record.bookingDate
+   let to = movements[0]!.record.bookingDate
+   for (const movement of movements) {
+      const date = movement.record.bookingDate
+      if (date < from) {
+         from = date
+      }
+      if (date > to) {
+         to = date
+      }
+   }
+   return { from, to }
 }
