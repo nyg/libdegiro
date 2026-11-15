@@ -1,1 +1,1 @@
-export * from './rates';
+export * from './rates'

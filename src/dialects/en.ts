@@ -1,32 +1,32 @@
-import type { CsvRow } from '../csv/tokenizer';
-import type { Dialect } from './types';
+import type { CsvRow } from '../csv/tokenizer'
 import {
-  DEGIRO_COLUMNS,
-  hasHeaderTokens,
-  parseDegiroDateTime,
-  parseFlexibleDecimal,
-} from './common';
+   DEGIRO_COLUMNS,
+   hasHeaderTokens,
+   parseDegiroDateTime,
+   parseFlexibleDecimal,
+} from './common'
+import type { Dialect } from './types'
 
 const ENGLISH_HEADER_TOKENS = [
-  'Date',
-  'Time',
-  'Product',
-  'ISIN',
-  'Description',
-  'Change',
-  'Balance',
-] as const;
+   'Date',
+   'Time',
+   'Product',
+   'ISIN',
+   'Description',
+   'Change',
+   'Balance',
+] as const
 
 export const englishDialect: Dialect = {
-  id: 'en',
-  label: 'DEGIRO English (Account.csv)',
-  columns: DEGIRO_COLUMNS,
-  matches(header: CsvRow): boolean {
-    return hasHeaderTokens(header, ENGLISH_HEADER_TOKENS);
-  },
-  parseDecimal: parseFlexibleDecimal,
-  parseDateTime: parseDegiroDateTime,
-  parseDate(date: string): Date | null {
-    return parseDegiroDateTime(date);
-  },
-};
+   id: 'en',
+   label: 'DEGIRO English (Account.csv)',
+   columns: DEGIRO_COLUMNS,
+   matches(header: CsvRow): boolean {
+      return hasHeaderTokens(header, ENGLISH_HEADER_TOKENS)
+   },
+   parseDecimal: parseFlexibleDecimal,
+   parseDateTime: parseDegiroDateTime,
+   parseDate(date: string): Date | null {
+      return parseDegiroDateTime(date)
+   },
+}

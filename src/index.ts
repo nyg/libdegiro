@@ -6,16 +6,16 @@
  * `libdegiro/node`.
  */
 
-export const version = '0.1.0';
+export const version = '0.1.0'
 
-export * from './errors';
-export * from './money/money';
-export * from './fx/index';
-export * from './csv/tokenizer';
-export * from './dialects/index';
-export * from './records/index';
-export * from './classify/index';
-export * from './group/index';
-export * from './parse';
-export * from './validate/index';
-export * from './portfolio/index';
+export * from './classify/index'
+export * from './csv/tokenizer'
+export * from './dialects/index'
+export * from './errors'
+export * from './fx/index'
+export * from './group/index'
+export * from './money/money'
+export * from './parse'
+export * from './portfolio/index'
+export * from './records/index'
+export * from './validate/index'

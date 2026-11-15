@@ -1,13 +1,13 @@
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { AppShell } from '@/components/app-shell';
-import { StatementProvider } from '@/state/statement';
+import { AppShell } from '@/components/app-shell'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { StatementProvider } from '@/state/statement'
 
 export function App() {
-  return (
-    <TooltipProvider delayDuration={150}>
-      <StatementProvider>
-        <AppShell />
-      </StatementProvider>
-    </TooltipProvider>
-  );
+   return (
+      <TooltipProvider delayDuration={150}>
+         <StatementProvider>
+            <AppShell />
+         </StatementProvider>
+      </TooltipProvider>
+   )
 }

@@ -1,15 +1,15 @@
-export * from './types';
-export * from './descriptions';
-export * from './registry';
-export { tradeMatcher } from './matchers/trade';
-export { fxTradeMatcher, fxConversionMatcher } from './matchers/fx';
-export { dividendMatcher, dividendTaxMatcher, capitalReturnMatcher } from './matchers/dividend';
-export { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees';
-export { interestMatcher } from './matchers/interest';
-export { structuralFxTradeMatcher, structuralTradeMatcher } from './matchers/structural';
+export * from './descriptions'
 export {
-  cashSweepMatcher,
-  depositMatcher,
-  withdrawalMatcher,
-  cashTransferMatcher,
-} from './matchers/cash';
+   cashSweepMatcher,
+   cashTransferMatcher,
+   depositMatcher,
+   withdrawalMatcher,
+} from './matchers/cash'
+export { capitalReturnMatcher,dividendMatcher, dividendTaxMatcher } from './matchers/dividend'
+export { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees'
+export { fxConversionMatcher,fxTradeMatcher } from './matchers/fx'
+export { interestMatcher } from './matchers/interest'
+export { structuralFxTradeMatcher, structuralTradeMatcher } from './matchers/structural'
+export { tradeMatcher } from './matchers/trade'
+export * from './registry'
+export * from './types'

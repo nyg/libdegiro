@@ -1,6 +1,8 @@
-import type { Duplex } from 'node:stream';
-import Papa from 'papaparse';
-import { papaParseOptions, type TokenizeOptions } from './options';
+import type { Duplex } from 'node:stream'
+
+import Papa from 'papaparse'
+
+import { papaParseOptions, type TokenizeOptions } from './options'
 
 /**
  * Create a streaming CSV tokenizer. The returned {@link Duplex} is a Node
@@ -11,5 +13,5 @@ import { papaParseOptions, type TokenizeOptions } from './options';
  * Node only — exported from `libdegiro/node`.
  */
 export function createCsvRowStream(options: TokenizeOptions = {}): Duplex {
-  return Papa.parse(Papa.NODE_STREAM_INPUT, papaParseOptions(options));
+   return Papa.parse(Papa.NODE_STREAM_INPUT, papaParseOptions(options))
 }

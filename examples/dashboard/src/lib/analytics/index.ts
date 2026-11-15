@@ -1,34 +1,35 @@
 import {
-  summarizePortfolio,
-  type ParseResult,
-  type PortfolioOptions,
-  type PortfolioSummary,
-} from 'libdegiro';
-import { collectFees, totalFees, type FeeCollection, type FeeTotals } from './fees';
-import { explainFees, type FeeContext } from './explain';
-import {
-  dividendsByInstrument,
-  incomeByYear,
-  totalIncome,
-  type DividendGroup,
-  type IncomeTotals,
-  type YearlyIncome,
-} from './income';
-import { balanceCurrencies, statementRange, type DateRange } from './timeseries';
-import { buildCashFlow, type CashFlowReport } from './cashflow';
-import { buildHealthReport, type HealthReport } from './health';
-import { buildPositionRows, type PositionRows } from './positions';
+   type ParseResult,
+   type PortfolioOptions,
+   type PortfolioSummary,
+   summarizePortfolio,
+} from 'libdegiro'
 
-export * from './cashflow';
-export * from './convert';
-export * from './exchange';
-export * from './fees';
-export * from './summary';
-export * from './explain';
-export * from './income';
-export * from './timeseries';
-export * from './health';
-export * from './positions';
+import { buildCashFlow, type CashFlowReport } from './cashflow'
+import { explainFees, type FeeContext } from './explain'
+import { collectFees, type FeeCollection, type FeeTotals,totalFees } from './fees'
+import { buildHealthReport, type HealthReport } from './health'
+import {
+   type DividendGroup,
+   dividendsByInstrument,
+   incomeByYear,
+   type IncomeTotals,
+   totalIncome,
+   type YearlyIncome,
+} from './income'
+import { buildPositionRows, type PositionRows } from './positions'
+import { balanceCurrencies, type DateRange,statementRange } from './timeseries'
+
+export * from './cashflow'
+export * from './convert'
+export * from './exchange'
+export * from './explain'
+export * from './fees'
+export * from './health'
+export * from './income'
+export * from './positions'
+export * from './summary'
+export * from './timeseries'
 
 /**
  * Everything the dashboard derives from one parsed statement.
@@ -39,46 +40,46 @@ export * from './positions';
  * here — those stay as functions the components call with their own arguments.
  */
 export interface Analytics {
-  readonly result: ParseResult;
-  readonly portfolio: PortfolioSummary;
-  readonly positions: PositionRows;
-  readonly fees: FeeCollection;
-  readonly feeTotals: FeeTotals;
-  readonly feeContexts: readonly FeeContext[];
-  readonly cashFlow: CashFlowReport;
-  readonly dividends: readonly DividendGroup[];
-  readonly income: readonly YearlyIncome[];
-  readonly incomeTotals: IncomeTotals;
-  readonly health: HealthReport;
-  /** Currencies that have a cash balance series, sorted. */
-  readonly currencies: readonly string[];
-  readonly range: DateRange | null;
-  readonly fx: PortfolioOptions | null;
+   readonly result: ParseResult
+   readonly portfolio: PortfolioSummary
+   readonly positions: PositionRows
+   readonly fees: FeeCollection
+   readonly feeTotals: FeeTotals
+   readonly feeContexts: readonly FeeContext[]
+   readonly cashFlow: CashFlowReport
+   readonly dividends: readonly DividendGroup[]
+   readonly income: readonly YearlyIncome[]
+   readonly incomeTotals: IncomeTotals
+   readonly health: HealthReport
+   /** Currencies that have a cash balance series, sorted. */
+   readonly currencies: readonly string[]
+   readonly range: DateRange | null
+   readonly fx: PortfolioOptions | null
 }
 
 export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null): Analytics {
-  const fees = collectFees(result.movements);
-  const unparseableExchanges = fees.entries.filter(
-    (entry) => entry.category === 'connectivity' && entry.exchange === null,
-  ).length;
+   const fees = collectFees(result.movements)
+   const unparseableExchanges = fees.entries.filter(
+      (entry) => entry.category === 'connectivity' && entry.exchange === null,
+   ).length
 
-  const portfolio = summarizePortfolio(result.movements, fx ?? undefined);
-  const range = statementRange(result.movements);
+   const portfolio = summarizePortfolio(result.movements, fx ?? undefined)
+   const range = statementRange(result.movements)
 
-  return {
-    result,
-    portfolio,
-    positions: buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null),
-    fees,
-    feeTotals: totalFees(fees.entries),
-    feeContexts: explainFees(result),
-    cashFlow: buildCashFlow(result.movements),
-    dividends: dividendsByInstrument(result.movements),
-    income: incomeByYear(result.movements, fx),
-    incomeTotals: totalIncome(result.movements, fx),
-    health: buildHealthReport(result, unparseableExchanges),
-    currencies: balanceCurrencies(result.movements),
-    range,
-    fx: fx ?? null,
-  };
+   return {
+      result,
+      portfolio,
+      positions: buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null),
+      fees,
+      feeTotals: totalFees(fees.entries),
+      feeContexts: explainFees(result),
+      cashFlow: buildCashFlow(result.movements),
+      dividends: dividendsByInstrument(result.movements),
+      income: incomeByYear(result.movements, fx),
+      incomeTotals: totalIncome(result.movements, fx),
+      health: buildHealthReport(result, unparseableExchanges),
+      currencies: balanceCurrencies(result.movements),
+      range,
+      fx: fx ?? null,
+   }
 }

@@ -1,7 +1,8 @@
-import { fileURLToPath } from 'node:url';
-import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath } from 'node:url'
+
+import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import { defineConfig, type Plugin } from 'vite'
 
 /**
  * The promise this app makes is that a *statement* never leaves the browser, so
@@ -20,53 +21,53 @@ import tailwindcss from '@tailwindcss/vite';
  *  - `img-src` allows `blob:` so a chart can be exported to a canvas later.
  */
 const CSP = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  'connect-src https://api.frankfurter.dev',
-  "base-uri 'none'",
-  "form-action 'none'",
-  "object-src 'none'",
-].join('; ');
+   'default-src \'none\'',
+   'script-src \'self\'',
+   'style-src \'self\' \'unsafe-inline\'',
+   'img-src \'self\' data: blob:',
+   'font-src \'self\'',
+   'connect-src https://api.frankfurter.dev',
+   'base-uri \'none\'',
+   'form-action \'none\'',
+   'object-src \'none\'',
+].join('; ')
 
 /**
  * Injected at build time only. A static CSP in index.html would break `vite dev`,
  * which needs a WebSocket for HMR and injects inline scripts.
  */
 function cspMeta(): Plugin {
-  return {
-    name: 'csp-meta',
-    apply: 'build',
-    transformIndexHtml: {
-      order: 'pre',
-      handler: (html) => ({
-        html,
-        tags: [
-          {
-            tag: 'meta',
-            attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
-            injectTo: 'head-prepend',
-          },
-        ],
-      }),
-    },
-  };
+   return {
+      name: 'csp-meta',
+      apply: 'build',
+      transformIndexHtml: {
+         order: 'pre',
+         handler: (html) => ({
+            html,
+            tags: [
+               {
+                  tag: 'meta',
+                  attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+                  injectTo: 'head-prepend',
+               },
+            ],
+         }),
+      },
+   }
 }
 
 export default defineConfig({
-  // Served from https://<user>.github.io/libdegiro/.
-  base: '/libdegiro/',
-  plugins: [react(), tailwindcss(), cspMeta()],
-  resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-  },
-  build: {
-    sourcemap: false,
-    // Vite's modulePreload polyfill is an *inline* script, which `script-src
-    // 'self'` blocks -- the page would render blank with a lone console error.
-    // Every browser we target supports modulepreload natively.
-    modulePreload: { polyfill: false },
-  },
-});
+   // Served from https://<user>.github.io/libdegiro/.
+   base: '/libdegiro/',
+   plugins: [react(), tailwindcss(), cspMeta()],
+   resolve: {
+      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+   },
+   build: {
+      sourcemap: false,
+      // Vite's modulePreload polyfill is an *inline* script, which `script-src
+      // 'self'` blocks -- the page would render blank with a lone console error.
+      // Every browser we target supports modulepreload natively.
+      modulePreload: { polyfill: false },
+   },
+})

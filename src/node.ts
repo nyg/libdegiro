@@ -6,5 +6,5 @@
  * Node builtins and can be bundled for browsers, Deno, workers and edge runtimes.
  */
 
-export * from './csv/rowStream';
-export * from './io/index';
+export * from './csv/rowStream'
+export * from './io/index'
