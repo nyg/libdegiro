@@ -1,6 +1,6 @@
 import type { Matcher } from '../types'
 
-const INTEREST = /interest income|^flatex interest\b/i
+const INTEREST = /interest income|^(?:flatex interest|interest|rente|zinsen|interesse)\b/i
 
 /** Matches interest credited or charged (`Flatex Interest Income`, `Flatex Interest`). */
 export const interestMatcher: Matcher = {

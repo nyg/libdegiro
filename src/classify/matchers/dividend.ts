@@ -1,8 +1,10 @@
 import type { Matcher } from '../types'
 
-const DIVIDEND_TAX = /^(?:imp[oô]ts? sur (?:le )?dividende|dividend tax|withholding tax)/i
-const DIVIDEND = /^dividende?\b/i
-const CAPITAL_RETURN = /^(?:remboursement de capital|capital return|return of capital)/i
+const DIVIDEND_TAX =
+   /^(?:imp[oô]ts? sur (?:le )?dividende|dividend tax|withholding tax|dividendbelasting|dividendensteuer|retenci[óo]n del dividendo|ritenuta sul dividendo)/i
+const DIVIDEND = /^(?:dividend[aeo]?\b|fondsaussch[üu]ttung)/i
+const CAPITAL_RETURN =
+   /^(?:remboursement de capital|capital return|return of capital|kapitalr[üu]ckzahlung|kapitaalsuitkering)/i
 
 /** Matches dividend tax withholding (`Impôts sur dividende`). */
 export const dividendTaxMatcher: Matcher = {

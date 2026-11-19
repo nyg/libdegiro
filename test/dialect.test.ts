@@ -4,14 +4,17 @@ import {
    createDefaultDialectRegistry,
    type Dialect,
    DialectRegistry,
+   dutchDialect,
    englishDialect,
    frenchDialect,
    genericDialect,
+   germanDialect,
    matchesDegiroLayout,
    parseFlexibleDateTime,
    parseFlexibleDecimal,
    parseFrenchDateTime,
    parseFrenchDecimal,
+   spanishDialect,
    UnknownDialectError,
 } from '../src/index'
 
@@ -135,6 +138,104 @@ describe('englishDialect', () => {
    })
 })
 
+const dutchHeader = [
+   'Datum',
+   'Tijd',
+   'Valutadatum',
+   'Product',
+   'ISIN',
+   'Omschrijving',
+   'FX',
+   'Mutatie',
+   '',
+   'Saldo',
+   '',
+   'Order Id',
+]
+
+const germanHeader = [
+   'Datum',
+   'Uhrzeit',
+   'Wertstellungsdatum',
+   'Produkt',
+   'ISIN',
+   'Beschreibung',
+   'FX',
+   'Änderung',
+   '',
+   'Saldo',
+   '',
+   'Auftrag ID',
+]
+
+const spanishHeader = [
+   'Fecha',
+   'Hora',
+   'Fecha valor',
+   'Producto',
+   'ISIN',
+   'Descripción',
+   'Tipo',
+   'Variación',
+   '',
+   'Saldo',
+   '',
+   'ID Orden',
+]
+
+const italianHeader = [
+   'Data',
+   'Ora',
+   'Data Valore',
+   'Prodotto',
+   'ISIN',
+   'Descrizione',
+   'Borsa',
+   'Variazioni',
+   '',
+   'Saldo',
+   '',
+   'ID Ordine',
+]
+
+describe.each([
+   ['nl', dutchDialect, dutchHeader],
+   ['de', germanDialect, germanHeader],
+   ['es', spanishDialect, spanishHeader],
+] as const)('the %s dialect', (id, dialect, header) => {
+   const others = [frenchHeader, englishHeader, dutchHeader, germanHeader, spanishHeader, italianHeader]
+
+   it('matches its own header and no other', () => {
+      expect(others.filter((candidate) => dialect.matches(candidate))).toEqual([header])
+   })
+
+   it('is detected by the default registry instead of the fallback', () => {
+      expect(createDefaultDialectRegistry().detect(header).id).toBe(id)
+      expect(dialect.heuristic).toBeUndefined()
+   })
+
+   it('shares the positional layout with the French dialect', () => {
+      expect(dialect.columns).toEqual(frenchDialect.columns)
+   })
+
+   it('reads DD-MM-YYYY dates as UTC and both number formats', () => {
+      expect(dialect.parseDateTime('01-02-2025', '12:21')?.toISOString()).toBe(
+         '2025-02-01T12:21:00.000Z',
+      )
+      expect(dialect.parseDecimal('-1.147,50')).toBe('-1147.50')
+      expect(dialect.parseDecimal('-1,147.50')).toBe('-1147.50')
+   })
+})
+
+describe('dutchDialect', () => {
+   it('matches the variant header that says Beschrijving and Order ID', () => {
+      const variant = dutchHeader.map((cell) =>
+         cell === 'Omschrijving' ? 'Beschrijving' : cell === 'Order Id' ? 'Order ID' : cell,
+      )
+      expect(dutchDialect.matches(variant)).toBe(true)
+   })
+})
+
 describe('parseFlexibleDateTime', () => {
    it('reads the DEGIRO DD-MM-YYYY format', () => {
       expect(parseFlexibleDateTime('01-02-2025', '12:21')?.toISOString()).toBe(
@@ -154,24 +255,9 @@ describe('parseFlexibleDateTime', () => {
 })
 
 describe('genericDialect', () => {
-   const dutchHeader = [
-      'Datum',
-      'Tijd',
-      'Valutadatum',
-      'Product',
-      'ISIN',
-      'Omschrijving',
-      'FX',
-      'Mutatie',
-      '',
-      'Saldo',
-      '',
-      'Order Id',
-   ]
-
    it('recognises a header in a language it has never seen', () => {
-      expect(genericDialect.matches(dutchHeader)).toBe(true)
-      expect(matchesDegiroLayout(dutchHeader)).toBe(true)
+      expect(genericDialect.matches(italianHeader)).toBe(true)
+      expect(matchesDegiroLayout(italianHeader)).toBe(true)
    })
 
    it('recognises the French and English headers too, being a superset', () => {
@@ -187,16 +273,16 @@ describe('genericDialect', () => {
 
    it('rejects anything that is not the DEGIRO column layout', () => {
       expect(genericDialect.matches(['Date', 'Amount', 'Balance'])).toBe(false)
-      expect(genericDialect.matches([...dutchHeader, 'Extra'])).toBe(false)
-      expect(genericDialect.matches(dutchHeader.map((c, i) => (i === 3 ? '' : c)))).toBe(false)
-      expect(genericDialect.matches(dutchHeader.map((c, i) => (i === 8 ? 'Filled' : c)))).toBe(false)
+      expect(genericDialect.matches([...italianHeader, 'Extra'])).toBe(false)
+      expect(genericDialect.matches(italianHeader.map((c, i) => (i === 3 ? '' : c)))).toBe(false)
+      expect(genericDialect.matches(italianHeader.map((c, i) => (i === 8 ? 'Filled' : c)))).toBe(false)
    })
 
    it('is matched only after the language-aware dialects', () => {
       const registry = createDefaultDialectRegistry()
       expect(registry.detect(frenchHeader).id).toBe('fr')
       expect(registry.detect(englishHeader).id).toBe('en')
-      expect(registry.detect(dutchHeader).id).toBe('generic')
+      expect(registry.detect(italianHeader).id).toBe('generic')
    })
 })
 
@@ -225,6 +311,6 @@ describe('DialectRegistry', () => {
       }
       const registry = createDefaultDialectRegistry().register(custom, { prepend: true })
       expect(registry.detect(frenchHeader).id).toBe('custom')
-      expect(registry.all().map((d) => d.id)).toEqual(['custom', 'fr', 'en', 'generic'])
+      expect(registry.all().map((d) => d.id)).toEqual(['custom', 'fr', 'en', 'nl', 'de', 'es', 'generic'])
    })
 })

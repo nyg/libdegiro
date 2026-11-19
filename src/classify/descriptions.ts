@@ -4,9 +4,12 @@ import { Money } from '../money/money'
 /** Leading quantity: digits, then any number of grouped thousands. */
 const LEADING_QTY = /^[0-9]+(?:[ .,\u00a0\u202f][0-9]{3})*/
 const QTY_GROUPING = /[ .,\u00a0\u202f]/g
-/** `Achat|Vente|Buy|Sell` and the whitespace that follows it. */
-const TRADE_VERB = /^(Achat|Vente|Buy|Sell)\s+/i
-const BUY_SIDE = /^(achat|buy)$/i
+/** `Achat|Vente|Buy|Sell|Koop|Verkoop|Kauf|Verkauf` and the whitespace that follows it. */
+const TRADE_VERB = /^(Achat|Vente|Buy|Sell|Koop|Verkoop|Kauf|Verkauf)\s+/i
+const BUY_SIDE = /^(achat|buy|koop|kauf)$/i
+const UNLABELLED_PRICE_SEPARATORS = ['@'] as const
+/** German trades read `Kauf 1 zu je 211 USD`. */
+const LABELLED_PRICE_SEPARATORS = ['@', ' zu je '] as const
 const CURRENCY = /^[A-Za-z]{3}$/
 const DIGIT = /[0-9]/
 const TRAILING_SPACE = /\s$/
@@ -15,9 +18,11 @@ const FX_SETTLEMENT_PREFIX =
    /^(?:R[èe]glement transaction devise|(?:Currency|FX)\s+(?:transaction\s+)?settlement)\s*:\s*/i
 /** Currency pair such as `EUR/CHF`. */
 const FX_PAIR = /^[A-Za-z]{3}\/[A-Za-z]{3}$/
-/** `Virement|Transfer|Deposit|Withdrawal vers|depuis|to|from ...`, up to the colon. */
-const CASH_TRANSFER = /^(?:Virement|Transfer|Deposit|Withdrawal)\s+(vers|depuis|to|from)\b/i
-const TO_CASH_ACCOUNT = /^(vers|to)$/i
+const TO_CASH_ACCOUNT =
+   /^(?:(?:virement|transfer|deposit|withdrawal)\s+(?:vers|to)|overboeking\s+naar|überweisung\s+auf|transferir\s+a|trasferisci\s+sul)\b/i
+const FROM_CASH_ACCOUNT =
+   /^(?:(?:virement|transfer|deposit|withdrawal)\s+(?:depuis|from)|overboeking\s+van|auszahlung\s+von|transferir\s+desde|trasferisci\s+dal)\b/i
+const AMOUNT_CHAR = /[0-9.,\s]/
 
 /** Parse a localized integer quantity (with space thousands separators). */
 export function parseQuantity(raw: string, dialect: Dialect): number | null {
@@ -55,14 +60,16 @@ function splitTrailingCurrency(text: string): { head: string, currency: string }
 function parsePriceTail(
    priceTail: string,
    dialect: Dialect,
+   isinRequired: boolean,
 ): { unitPrice: Money | null, isin: string | null } {
    const trimmed = priceTail.trim()
    const open = trimmed.lastIndexOf('(')
-   if (open < 0 || !trimmed.endsWith(')')) {
+   const hasIsin = open >= 0 && trimmed.endsWith(')')
+   if (!hasIsin && isinRequired) {
       return { unitPrice: null, isin: null }
    }
 
-   const priceAndCurrency = splitTrailingCurrency(trimmed.slice(0, open).trim())
+   const priceAndCurrency = splitTrailingCurrency(hasIsin ? trimmed.slice(0, open).trim() : trimmed)
    if (!priceAndCurrency) {
       return { unitPrice: null, isin: null }
    }
@@ -70,7 +77,7 @@ function parsePriceTail(
    const price = dialect.parseDecimal(priceAndCurrency.head)
    return {
       unitPrice: price === null ? null : new Money(price, priceAndCurrency.currency),
-      isin: trimmed.slice(open + 1, -1).trim() || null,
+      isin: hasIsin ? trimmed.slice(open + 1, -1).trim() || null : null,
    }
 }
 
@@ -78,25 +85,43 @@ function parseTradeBody(
    qtyAndProduct: string,
    priceTail: string,
    dialect: Dialect,
+   isinRequired: boolean,
 ): ParsedTradeShape {
    const qtyMatch = LEADING_QTY.exec(qtyAndProduct)
    const quantity = qtyMatch ? parseQuantity(qtyMatch[0].replace(QTY_GROUPING, ''), dialect) : null
    const rest = qtyMatch ? qtyAndProduct.slice(qtyMatch[0].length) : qtyAndProduct
 
-   return { quantity, product: rest.trim() || null, ...parsePriceTail(priceTail, dialect) }
+   return {
+      quantity,
+      product: rest.trim() || null,
+      ...parsePriceTail(priceTail, dialect, isinRequired),
+   }
 }
 
-function splitAtPrice(text: string, from: number): { left: string, right: string } | null {
-   const at = text.indexOf('@', from)
-   if (at <= 0 || at === text.length - 1) {
+function splitAtPrice(
+   text: string,
+   from: number,
+   separators: readonly string[],
+): { left: string, right: string } | null {
+   let at = -1
+   let length = 0
+   for (const separator of separators) {
+      const index = text.indexOf(separator, from)
+      if (index >= 0 && (at < 0 || index < at)) {
+         at = index
+         length = separator.length
+      }
+   }
+   if (at <= 0 || at + length >= text.length) {
       return null
    }
-   return { left: text.slice(from, at), right: text.slice(at + 1) }
+   return { left: text.slice(from, at), right: text.slice(at + length) }
 }
 
 /**
  * Parse a trade description such as
- * `"Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)"`.
+ * `"Achat 42 iShares Core MSCI World UCITS ETF USD (Acc)@96,11 CHF (IE00B4L5Y983)"`,
+ * `"Koop 15 @ 76,50 EUR"` or `"Kauf 1 zu je 211 USD (US88160R1014)"`.
  * Returns `null` when the text is not a trade.
  */
 export function parseTradeDescription(description: string, dialect: Dialect): ParsedTrade | null {
@@ -106,13 +131,13 @@ export function parseTradeDescription(description: string, dialect: Dialect): Pa
       return null
    }
 
-   const split = splitAtPrice(trimmed, verb[0].length)
+   const split = splitAtPrice(trimmed, verb[0].length, LABELLED_PRICE_SEPARATORS)
    if (!split) {
       return null
    }
 
    const side = BUY_SIDE.test(verb[1] ?? '') ? 'buy' : 'sell'
-   return { side, ...parseTradeBody(split.left, split.right, dialect) }
+   return { side, ...parseTradeBody(split.left, split.right, dialect, false) }
 }
 
 export interface ParsedUnlabelledTrade extends ParsedTradeShape {
@@ -129,14 +154,14 @@ export function parseUnlabelledTradeDescription(
       return null
    }
 
-   const split = splitAtPrice(trimmed, quantity)
+   const split = splitAtPrice(trimmed, quantity, UNLABELLED_PRICE_SEPARATORS)
    if (!split) {
       return null
    }
 
    return {
       prefix: trimmed.slice(0, quantity).trim(),
-      ...parseTradeBody(split.left, split.right, dialect),
+      ...parseTradeBody(split.left, split.right, dialect, true),
    }
 }
 
@@ -184,32 +209,46 @@ export interface ParsedCashTransfer {
    readonly amount: Money | null
 }
 
+function cashTransferDirection(text: string): ParsedCashTransfer['direction'] | null {
+   if (TO_CASH_ACCOUNT.test(text)) {
+      return 'toCashAccount'
+   }
+   if (FROM_CASH_ACCOUNT.test(text)) {
+      return 'fromCashAccount'
+   }
+   return null
+}
+
+function trailingAmount(text: string): string {
+   let start = text.length
+   while (start > 0 && AMOUNT_CHAR.test(text.charAt(start - 1))) {
+      start -= 1
+   }
+   return text.slice(start).trim()
+}
+
 /**
  * Parse a cash-transfer description such as
- * `"Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 213,25 EUR"`.
+ * `"Virement depuis votre Compte Espèces à la flatexDEGIRO Bank: 213,25 EUR"`, with
+ * or without the colon before the amount.
  */
 export function parseCashTransferDescription(
    description: string,
    dialect: Dialect,
 ): ParsedCashTransfer | null {
    const trimmed = description.trim()
-   const match = CASH_TRANSFER.exec(trimmed)
-   if (!match) {
+   const direction = cashTransferDirection(trimmed)
+   if (direction === null) {
       return null
    }
 
-   const colon = trimmed.lastIndexOf(':')
-   if (colon < 0) {
+   const stated = splitTrailingCurrency(trimmed)
+   const amountText = stated ? trailingAmount(stated.head) : ''
+   if (!stated || !DIGIT.test(amountText.charAt(0))) {
       return null
    }
 
-   const stated = splitTrailingCurrency(trimmed.slice(colon + 1).trim())
-   if (!stated || !DIGIT.test(stated.head.charAt(0))) {
-      return null
-   }
-
-   const direction = TO_CASH_ACCOUNT.test(match[1] ?? '') ? 'toCashAccount' : 'fromCashAccount'
-   const decimal = dialect.parseDecimal(stated.head)
+   const decimal = dialect.parseDecimal(amountText)
    const amount = decimal === null ? null : new Money(decimal, stated.currency)
 
    return { direction, amount }

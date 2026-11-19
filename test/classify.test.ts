@@ -6,14 +6,24 @@ import { describe, expect,it } from 'vitest'
 import {
    createDefaultClassifierRegistry,
    defaultClassifier,
+   depositMatcher,
+   type Dialect,
+   dividendMatcher,
+   dutchDialect,
    englishDialect,
    frenchDialect,
+   genericDialect,
+   germanDialect,
    mapRow,
    type Matcher,
    Money,
    type Movement,
+   type MovementKind,
    type RawRecord,
+   spanishDialect,
    tokenizeCsv,
+   tradeMatcher,
+   withdrawalMatcher,
 } from '../src/index'
 
 const fixture = readFileSync(
@@ -47,6 +57,26 @@ function record(description: string, overrides: Partial<RawRecord> = {}): RawRec
       raw: [],
       ...overrides,
    }
+}
+
+function itClassifies(dialect: Dialect, cases: readonly (readonly [string, MovementKind])[]): void {
+   it.each(cases)('classifies "%s" as %s', (description, kind) => {
+      expect(defaultClassifier.classify(record(description), dialect).kind).toBe(kind)
+   })
+}
+
+function itReadsCashTransfers(
+   dialect: Dialect,
+   cases: readonly (readonly [string, 'toCashAccount' | 'fromCashAccount', string])[],
+): void {
+   it.each(cases)('reads "%s" as a transfer %s of %s', (description, direction, stated) => {
+      const movement = defaultClassifier.classify(record(description), dialect)
+      expect(movement.kind).toBe('cashTransfer')
+      if (movement.kind === 'cashTransfer') {
+         expect(movement.direction).toBe(direction)
+         expect(movement.statedAmount?.toString()).toBe(stated)
+      }
+   })
 }
 
 describe('classification of the full sample export', () => {
@@ -291,6 +321,284 @@ describe('English descriptions', () => {
    it('does not mistake a French export read through the English dialect', () => {
       expect(classify(record('Versement de fonds')).kind).toBe('deposit')
       expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep')
+   })
+})
+
+describe('Dutch descriptions', () => {
+   const classify = (rec: RawRecord) => defaultClassifier.classify(rec, dutchDialect)
+
+   itClassifies(dutchDialect, [
+      ['DEGIRO Transactiekosten en/of kosten van derden', 'brokerageFee'],
+      ['DEGIRO Transactiekosten', 'brokerageFee'],
+      ['DEGIRO Aansluitingskosten 2021 (Borsa Italiana S.p.A. - MIL)', 'connectivityFee'],
+      ['Valuta Creditering', 'fxCredit'],
+      ['Valuta Debitering', 'fxDebit'],
+      ['Dividend', 'dividend'],
+      ['Dividendbelasting', 'dividendTax'],
+      ['Kapitaalsuitkering', 'capitalReturn'],
+      ['Rente', 'interest'],
+      ['iDEAL Deposit', 'deposit'],
+      ['iDEAL storting', 'deposit'],
+      ['flatex Storting', 'deposit'],
+      ['flatex terugstorting', 'withdrawal'],
+   ])
+
+   itReadsCashTransfers(dutchDialect, [
+      ['Overboeking naar uw geldrekening bij flatexDEGIRO Bank: 0,92 EUR', 'toCashAccount', '0.92 EUR'],
+      ['Overboeking van uw geldrekening bij flatexDEGIRO Bank: 213,25 EUR', 'fromCashAccount', '213.25 EUR'],
+      ['Overboeking van uw geldrekening bij flatexDEGIRO Bank 26,45 EUR', 'fromCashAccount', '26.45 EUR'],
+   ])
+
+   it('reads a buy that names neither product nor ISIN from the columns', () => {
+      // Given
+      const row = record('Koop 15 @ 76,50 EUR', {
+         product: 'VANGUARD FTSE ALL-WORLD UCITS ETF',
+         isin: 'IE00B3RBWM25',
+         mutation: Money.of('-1147.50', 'EUR'),
+      })
+
+      // When
+      const movement = classify(row)
+
+      // Then
+      expect(movement.kind).toBe('buy')
+      if (movement.kind === 'buy') {
+         expect(movement.quantity).toBe(15)
+         expect(movement.unitPrice?.toString()).toBe('76.5 EUR')
+         expect(movement.product).toBe('VANGUARD FTSE ALL-WORLD UCITS ETF')
+         expect(movement.isin).toBe('IE00B3RBWM25')
+      }
+   })
+
+   it('reads a sell from its verb', () => {
+      // Given
+      const row = record('Verkoop 7 @ 112,40 EUR', { isin: 'IE00B3RBWM25' })
+
+      // When
+      const movement = classify(row)
+
+      // Then
+      expect(movement.kind).toBe('sell')
+      if (movement.kind === 'sell') {
+         expect(movement.quantity).toBe(7)
+         expect(movement.unitPrice?.toString()).toBe('112.4 EUR')
+      }
+   })
+
+   it('leaves a trade with no ISIN anywhere unknown', () => {
+      expect(classify(record('Koop 15 @ 76,50 EUR')).kind).toBe('unknown')
+   })
+
+   it('reads a currency pair as an FX trade, never a security trade', () => {
+      // Given
+      const row = record('Koop 4.800 EUR/CHF@0,9412 CHF ()', { product: 'EUR/CHF', isin: 'IE00B3RBWM25' })
+
+      // When
+      const movement = classify(row)
+      const asSecurity = tradeMatcher.match({ record: row, dialect: dutchDialect })
+
+      // Then
+      expect(movement.kind).toBe('fxTrade')
+      expect(asSecurity).toBeNull()
+   })
+
+   it('does not read an FX pair in the product column as a security trade', () => {
+      // Given
+      const row = record('Koop 100 @ 0,94 CHF', { product: 'EUR/CHF', isin: 'IE00B3RBWM25' })
+
+      // When
+      const movement = tradeMatcher.match({ record: row, dialect: dutchDialect })
+
+      // Then
+      expect(movement).toBeNull()
+   })
+})
+
+describe('German descriptions', () => {
+   const classify = (rec: RawRecord) => defaultClassifier.classify(rec, germanDialect)
+
+   itClassifies(germanDialect, [
+      ['Transaktionsgebühr', 'brokerageFee'],
+      ['DEGIRO Transaktionsgebühren und/oder Fremdkosten', 'brokerageFee'],
+      ['Einrichtung von Handelsmodalitäten 2019 (New York Stock Exchange - NSY)', 'connectivityFee'],
+      ['Währungswechsel (Einbuchung)', 'fxCredit'],
+      ['Währungswechsel (Ausbuchung)', 'fxDebit'],
+      ['Dividende', 'dividend'],
+      ['Fondsausschüttung', 'dividend'],
+      ['Dividendensteuer', 'dividendTax'],
+      ['Kapitalrückzahlung', 'capitalReturn'],
+      ['Zinsen für Leerverkauf', 'interest'],
+      ['Einzahlung', 'deposit'],
+      ['SOFORT Einzahlung', 'deposit'],
+      ['flatex Einzahlung', 'deposit'],
+      ['Auszahlung', 'withdrawal'],
+      ['flatex Cash Sweep Transfer', 'cashSweep'],
+   ])
+
+   itReadsCashTransfers(germanDialect, [
+      ['Überweisung auf Ihr Geldkonto bei der flatex Bank: 2,37 EUR', 'toCashAccount', '2.37 EUR'],
+      ['Auszahlung von Ihrem Geldkonto bei der flatex Bank: 542,8 EUR', 'fromCashAccount', '542.8 EUR'],
+   ])
+
+   it('extracts the year of a connectivity fee', () => {
+      const movement = classify(record('Einrichtung von Handelsmodalitäten 2019 (New York Stock Exchange - NSY)'))
+      expect(movement.kind === 'connectivityFee' && movement.year).toBe(2019)
+   })
+
+   it('reads a buy that names no product, taking the ISIN from the description', () => {
+      // Given
+      const row = record('Kauf 1 zu je 211 USD (US88160R1014)', { product: 'TESLA INC' })
+
+      // When
+      const movement = classify(row)
+
+      // Then
+      expect(movement.kind).toBe('buy')
+      if (movement.kind === 'buy') {
+         expect(movement.quantity).toBe(1)
+         expect(movement.unitPrice?.toString()).toBe('211 USD')
+         expect(movement.product).toBe('TESLA INC')
+         expect(movement.isin).toBe('US88160R1014')
+      }
+   })
+
+   it('reads a sell from its verb', () => {
+      // Given
+      const row = record('Verkauf 25 zu je 67,4 USD (US0378331005)')
+
+      // When
+      const movement = classify(row)
+
+      // Then
+      expect(movement.kind).toBe('sell')
+      if (movement.kind === 'sell') {
+         expect(movement.quantity).toBe(25)
+         expect(movement.unitPrice?.toString()).toBe('67.4 USD')
+         expect(movement.isin).toBe('US0378331005')
+      }
+   })
+})
+
+describe('Spanish descriptions', () => {
+   itClassifies(spanishDialect, [
+      ['Costes de transacción y/o externos de DEGIRO', 'brokerageFee'],
+      ['Ingreso Cambio de Divisa', 'fxCredit'],
+      ['Retirada Cambio de Divisa', 'fxDebit'],
+      ['Dividendo', 'dividend'],
+      ['Retención del dividendo', 'dividendTax'],
+      ['Ingreso', 'deposit'],
+   ])
+
+   itReadsCashTransfers(spanishDialect, [
+      ['Transferir a su Cuenta de Efectivo en flatexDEGIRO Bank: 43,9 EUR', 'toCashAccount', '43.9 EUR'],
+      ['Transferir desde su Cuenta de Efectivo en flatexDEGIRO Bank: 12,5 EUR', 'fromCashAccount', '12.5 EUR'],
+   ])
+})
+
+describe('Italian descriptions', () => {
+   itClassifies(genericDialect, [
+      ['DEGIRO Commissioni di transazione e/o di terze parti', 'brokerageFee'],
+      ['DEGIRO Costi di connessione 2021 (Xetra - XET)', 'connectivityFee'],
+      ['Credito FX', 'fxCredit'],
+      ['Prelievo FX', 'fxDebit'],
+      ['Dividendo', 'dividend'],
+      ['Ritenuta sul dividendo', 'dividendTax'],
+      ['Interesse', 'interest'],
+      ['Deposito', 'deposit'],
+      ['Deposito flatex', 'deposit'],
+      ['Prelievo', 'withdrawal'],
+      ['Prelievo flatex', 'withdrawal'],
+   ])
+
+   itReadsCashTransfers(genericDialect, [
+      ['Trasferisci sul tuo conto deposito presso flatexDEGIRO Bank: 7,25 EUR', 'toCashAccount', '7.25 EUR'],
+      ['Trasferisci dal tuo conto deposito presso flatexDEGIRO Bank: 1.250,5 EUR', 'fromCashAccount', '1250.5 EUR'],
+   ])
+})
+
+describe('Czech descriptions', () => {
+   const classify = (rec: RawRecord) => defaultClassifier.classify(rec, genericDialect)
+
+   itClassifies(genericDialect, [
+      ['DEGIRO poplatek za Obchodování na zahraničních burzách 2023 (Borsa Italiana - MIL)', 'connectivityFee'],
+      ['Dividenda', 'dividend'],
+      ['Vklad', 'deposit'],
+   ])
+
+   it.each([
+      ['FX vyučtování konverze měny', '125.40', 'fxCredit'],
+      ['FX vyučtování konverze měny', '-115.00', 'fxDebit'],
+      ['FX vyúčtování konverze měny', '-115.00', 'fxDebit'],
+   ] as const)('takes "%s" of %s as %s from the sign', (description, amount, kind) => {
+      expect(classify(record(description, { mutation: Money.of(amount, 'EUR') })).kind).toBe(kind)
+   })
+
+   it('leaves an FX leg with no amount to sign unknown', () => {
+      expect(classify(record('FX vyučtování konverze měny')).kind).toBe('unknown')
+   })
+})
+
+describe('Portuguese descriptions', () => {
+   itClassifies(genericDialect, [
+      ['Comissões de transação DEGIRO e/ou taxas de terceiros', 'brokerageFee'],
+      ['Crédito de divisa', 'fxCredit'],
+      ['Levantamento de divisa', 'fxDebit'],
+   ])
+})
+
+describe('French and English wordings seen in other statements', () => {
+   itClassifies(englishDialect, [
+      ['Dépôt flatex', 'deposit'],
+      ['Giro Exchange Connection Fee 2022', 'connectivityFee'],
+      ['Interest', 'interest'],
+   ])
+})
+
+describe('wordings that share a prefix with another kind', () => {
+   it.each(['Dividendbelasting', 'Dividendensteuer', 'Retención del dividendo', 'Ritenuta sul dividendo'])(
+      'never reads the tax row "%s" as a dividend',
+      (description) => {
+         expect(dividendMatcher.match({ record: record(description), dialect: genericDialect })).toBeNull()
+      },
+   )
+
+   it('never reads a Spanish FX credit as a deposit', () => {
+      expect(
+         depositMatcher.match({ record: record('Ingreso Cambio de Divisa'), dialect: spanishDialect }),
+      ).toBeNull()
+   })
+
+   it('never reads an Italian FX debit as a withdrawal', () => {
+      expect(withdrawalMatcher.match({ record: record('Prelievo FX'), dialect: genericDialect })).toBeNull()
+   })
+})
+
+describe('rows that need a new kind', () => {
+   it.each([
+      'Koersverandering geldmarktfonds (EUR)',
+      'Conversie geldmarktfonds: Koop 100 @ 1 EUR',
+      'Geldmarktfonds Umwandlung: Kauf 709,65 zu je 1 EUR',
+      'STOCK SPLIT: Koop 4 @ 25 EUR',
+      'DELISTING: Verkauf 4 zu je 0 EUR',
+      'Transactiebelasting',
+      'Französische Transaktionssteuer',
+      'Verrekening Welkomstactie',
+      'SOFORT Zahlungsgebühr',
+      'ADR/GDR Externe Kosten',
+      'Coupon',
+      'Meegekochte Rente',
+      'Vervangende Betaling',
+      'Belasting op vervangend dividend',
+      'Reservation iDEAL / Sofort Deposit',
+   ])('leaves "%s" unknown', (description) => {
+      // Given
+      const row = record(description, { isin: 'IE00B3RBWM25', mutation: Money.of('-100', 'EUR') })
+
+      // When
+      const movement = defaultClassifier.classify(row, genericDialect)
+
+      // Then
+      expect(movement.kind).toBe('unknown')
    })
 })
 
