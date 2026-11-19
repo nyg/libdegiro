@@ -3,12 +3,21 @@ import type { ReactNode } from 'react'
 import { MoneyList } from '@/components/money-list'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ConvertedTotal } from '@/lib/analytics'
+import { cn } from '@/lib/utils'
 
-export function Approx({ explanation, children }: { explanation: string, children: ReactNode }) {
+export function Approx({
+   explanation,
+   children,
+   className,
+}: {
+   explanation: string
+   children: ReactNode
+   className?: string
+}) {
    return (
       <Tooltip>
          <TooltipTrigger asChild>
-            <span className="flex cursor-help items-center justify-end gap-1">
+            <span className={cn('flex cursor-help items-center justify-end gap-1', className)}>
                <span className="text-muted-foreground text-xs">≈</span>
                {children}
             </span>
