@@ -1,6 +1,29 @@
 # Changelog
 
 
+## [1.1.0](https://github.com/nyg/libdegiro/compare/v1.0.2..v1.1.0) - 2026-11-19
+
+### ⛰️  Features
+
+- [`55eae90`](https://github.com/nyg/libdegiro/commit/55eae905da0113b65db2ae512b8371cae2ec307c) Classify Dutch, German, Spanish, Italian, Czech and Portuguese rows ([#61](https://github.com/nyg/libdegiro/issues/61))
+- [`a94a17a`](https://github.com/nyg/libdegiro/commit/a94a17ac5f07e9a3edf6347c38027f9d4ce3fa47) Classify securities-lending income ([#59](https://github.com/nyg/libdegiro/issues/59))
+- [`ae990d1`](https://github.com/nyg/libdegiro/commit/ae990d1e132cf1ade153fc17381c673431802b28) *(dashboard)* Show overview totals in the main currency ([#60](https://github.com/nyg/libdegiro/issues/60))
+- [`1cf24d6`](https://github.com/nyg/libdegiro/commit/1cf24d60cb3bdbb0eabf6e12df6d7d076c089de8) Classify interest charges and show margin loans in the dashboard ([#58](https://github.com/nyg/libdegiro/issues/58))
+
+### 📚 Documentation
+
+- [`dfbc6fe`](https://github.com/nyg/libdegiro/commit/dfbc6fee093249765bd16711114c8f9e4ee16278) Remove CLAUDE.md now that Claude Code reads AGENTS.md ([#56](https://github.com/nyg/libdegiro/issues/56))
+
+### ⚙️ Miscellaneous
+
+- [`54288b6`](https://github.com/nyg/libdegiro/commit/54288b67da42130615071d3a640b75c22065919a) Use the shared ESLint config ([#57](https://github.com/nyg/libdegiro/issues/57))
+- [`e79e75f`](https://github.com/nyg/libdegiro/commit/e79e75f2cc8c899840420a2960634abef931d17c) *(deps)* Lock file maintenance ([#55](https://github.com/nyg/libdegiro/issues/55))
+- [`86a471e`](https://github.com/nyg/libdegiro/commit/86a471e6018521c10281dc2cc488f118cedc460f) *(deps)* Update dependency node to v26.13.0 ([#54](https://github.com/nyg/libdegiro/issues/54))
+- [`5f25608`](https://github.com/nyg/libdegiro/commit/5f25608b02715d924b6eec145ffd069466eb4f9f) *(deps)* Update all stable non-major dependencies ([#53](https://github.com/nyg/libdegiro/issues/53))
+- [`a23054f`](https://github.com/nyg/libdegiro/commit/a23054f3a7ea63e7a07b88778ad682de4dd03156) *(deps)* Lock file maintenance ([#52](https://github.com/nyg/libdegiro/issues/52))
+- [`3d7fe94`](https://github.com/nyg/libdegiro/commit/3d7fe94eaedaf4f58b6318aedc99b21589684f60) *(deps)* Lock file maintenance ([#51](https://github.com/nyg/libdegiro/issues/51))
+- [`346b4f9`](https://github.com/nyg/libdegiro/commit/346b4f9ef309cf9684ef2bb3ac28e2fb2128d4d7) *(deps)* Update all stable non-major dependencies ([#50](https://github.com/nyg/libdegiro/issues/50))
+
 ## [1.0.2](https://github.com/nyg/libdegiro/compare/v1.0.1..v1.0.2) - 2026-09-21
 
 ### 🐛 Bug Fixes
