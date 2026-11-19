@@ -5,7 +5,7 @@ import { useAnalytics } from '@/state/statement-context'
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
 
 export function OverviewSection() {
-   const { portfolio, feeTotals, range, result } = useAnalytics()
+   const { portfolio, feeTotals, range, result, margin } = useAnalytics()
    const openPositions = portfolio.positions.filter((position) => position.quantity !== 0)
    const invested = portfolio.invested.filter((amount) => !amount.isZero())
 
@@ -26,7 +26,11 @@ export function OverviewSection() {
                title="Cash balance"
                amounts={portfolio.cashByCurrency}
                hideZero
-               hint="Latest per currency"
+               hint={
+                  margin.since
+                     ? `Latest per currency. Below zero is a margin loan, since ${formatDate(margin.since)}`
+                     : 'Latest per currency'
+               }
             />
             <StatCard
                title="Dividends"
@@ -45,7 +49,11 @@ export function OverviewSection() {
                title="Interest"
                amounts={portfolio.interest}
                hideZero
-               hint="Credited by flatexDEGIRO"
+               hint={
+                  margin.interestCharged.length > 0
+                     ? 'Credited by flatexDEGIRO, less interest charged'
+                     : 'Credited by flatexDEGIRO'
+               }
             />
             <StatCard
                title="Withholding tax"

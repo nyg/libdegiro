@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { useId, useMemo, useState } from 'react'
+import { Area, AreaChart, CartesianGrid, ReferenceLine, useYAxisScale, XAxis, YAxis } from 'recharts'
 
+import { MarginLoan } from '@/components/sections/margin'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
    type ChartConfig,
@@ -21,7 +22,35 @@ import { useAnalytics } from '@/state/statement-context'
 
 const TOTAL = '__total__'
 
+/**
+ * Paints below zero red, split in pixels just under the zero line: a split
+ * exactly on it would tint a 2px line resting on a small positive balance.
+ */
+function BelowZeroGradient({ id }: { id: string }) {
+   const zero = useYAxisScale()?.(0)
+   if (zero === undefined) {
+      return null
+   }
+   return (
+      <defs>
+         <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={zero + 1} y2={zero + 2}>
+            <stop offset="0" stopColor="var(--color-balance)" />
+            <stop offset="1" stopColor="var(--destructive)" />
+         </linearGradient>
+      </defs>
+   )
+}
+
 export function CashSection() {
+   return (
+      <div className="flex flex-col gap-6">
+         <MarginLoan />
+         <BalanceChart />
+      </div>
+   )
+}
+
+function BalanceChart() {
    const { result, currencies, fx } = useAnalytics()
    const base = fx?.rates && fx.base ? fx.base : null
    const combinable = base !== null && currencies.length > 1
@@ -51,6 +80,9 @@ export function CashSection() {
    )
 
    const label = total ? `Total ≈ ${base}` : active
+   const gradientId = `balance-${useId().replace(/[^\w-]/g, '')}`
+   const borrowed = data.some((point) => point.balance < 0)
+   const paint = borrowed ? `url(#${gradientId})` : 'var(--color-balance)'
 
    // The tooltip names the series, so the currency belongs there rather than
    // repeated on every y tick.
@@ -67,6 +99,7 @@ export function CashSection() {
                <CardDescription>
                   Each point is the balance at the end of that day. Sweeps to and from the flatexDEGIRO
                   cash account cancel out within a timestamp and are shown net.
+                  {borrowed ? ' Below zero, in red, is money borrowed on margin.' : null}
                   {total ? (
                      <>
                         {' '}
@@ -101,6 +134,7 @@ export function CashSection() {
             ) : (
                <ChartContainer config={config} className="h-[320px] w-full">
                   <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 8 }}>
+                     {borrowed ? <BelowZeroGradient id={gradientId} /> : null}
                      <CartesianGrid vertical={false} />
                      <XAxis
                         dataKey="t"
@@ -133,11 +167,14 @@ export function CashSection() {
                            />
                         }
                      />
+                     {borrowed ? (
+                        <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
+                     ) : null}
                      <Area
                         dataKey="balance"
                         type="stepAfter"
-                        stroke="var(--color-balance)"
-                        fill="var(--color-balance)"
+                        stroke={paint}
+                        fill={paint}
                         fillOpacity={0.15}
                         strokeWidth={2}
                         dot={false}
