@@ -29,7 +29,7 @@ A modern, ESM-only TypeScript library that turns a DEGIRO account statement into
 
 - 🧮 **Exact money** with [`big.js`](https://github.com/MikeMcl/big.js) — no float drift
 - 🧩 **Extensible** dialects, classifiers and grouping strategies
-- 🌐 **French and English exports** out of the box, and a layout-detecting fallback for every other language
+- 🌐 **French, English, Dutch, German and Spanish exports** out of the box, Italian, Czech and Portuguese descriptions too, and a layout-detecting fallback for every other language
 - 🧠 **Typed domain model** — discriminated unions for movements & transactions
 - 🪶 **Lenient parsing** — per-row problems are collected, never thrown
 - 🌊 **Streaming** parser for very large files
@@ -111,26 +111,35 @@ Parsing is **lenient**: a row with an unparseable date is dropped and reported a
 
 ## Supported exports
 
-DEGIRO localizes the **header row** of `Account.csv` to the interface language. Two dialects recognise a header by its words, and a third recognises the file by its shape when neither does:
+DEGIRO localizes the **header row** of `Account.csv` to the interface language. Five dialects recognise a header by its words, and a sixth recognises the file by its shape when none does:
 
-| Dialect          | `id`      | Header                                                                            |
-| ---------------- | --------- | --------------------------------------------------------------------------------- |
-| `frenchDialect`  | `fr`      | `Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre` |
-| `englishDialect` | `en`      | `Date,Time,Value date,Product,ISIN,Description,FX,Change,,Balance,,Order Id`      |
-| `genericDialect` | `generic` | any header in DEGIRO's column layout, whatever the labels say                     |
+| Dialect          | `id`      | Header                                                                                         |
+| ---------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `frenchDialect`  | `fr`      | `Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre`              |
+| `englishDialect` | `en`      | `Date,Time,Value date,Product,ISIN,Description,FX,Change,,Balance,,Order Id`                   |
+| `dutchDialect`   | `nl`      | `Datum,Tijd,Valutadatum,Product,ISIN,Omschrijving,FX,Mutatie,,Saldo,,Order Id`                 |
+| `germanDialect`  | `de`      | `Datum,Uhrzeit,Wertstellungsdatum,Produkt,ISIN,Beschreibung,FX,Änderung,,Saldo,,Auftrag ID`    |
+| `spanishDialect` | `es`      | `Fecha,Hora,Fecha valor,Producto,ISIN,Descripción,Tipo,Variación,,Saldo,,ID Orden`             |
+| `genericDialect` | `generic` | any header in DEGIRO's column layout, whatever the labels say                                  |
 
-All three share the positional column layout, and the two language-aware ones share `DD-MM-YYYY` dates. They differ in how they read numbers: `frenchDialect` expects space thousands separators and a comma decimal mark, while `englishDialect` accepts either that or the US `1,060.20` form — DEGIRO does **not** switch the body of the file to English number formatting when you switch the interface language, so an English export can carry either. When a value contains both `,` and `.`, the last one is the decimal mark; a lone separator is a decimal mark unless the value is a run of exact 3-digit groups (`1,060,200`).
+All six share the positional column layout, and the five language-aware ones share `DD-MM-YYYY` dates. They differ in how they read numbers: `frenchDialect` expects space thousands separators and a comma decimal mark, while the English, Dutch, German and Spanish dialects accept either that or the US `1,060.20` form — DEGIRO does **not** switch the body of the file to another number format when you switch the interface language, so an export can carry either. `dutchDialect` also accepts the header variant that says `Beschrijving` and `Order ID`. When a value contains both `,` and `.`, the last one is the decimal mark; a lone separator is a decimal mark unless the value is a run of exact 3-digit groups (`1,060,200`).
 
-Descriptions are a separate axis: switching the interface language rewrites the header but leaves the description text alone, so an English-header export from a French account still says `Frais DEGIRO de courtage`. The built-in matchers therefore recognise both languages regardless of which dialect read the header. Anything they do not recognise becomes an `unknown` movement — never a dropped row.
+Descriptions are a separate axis: switching the interface language rewrites the header but leaves the description text alone, so an English-header export from a French account still says `Frais DEGIRO de courtage`. The built-in matchers therefore recognise French, English, Dutch, German, Spanish, Italian, Czech and Portuguese wordings regardless of which dialect read the header. Anything they do not recognise becomes an `unknown` movement — never a dropped row.
+
+A few wordings need more than a lookup:
+
+- Dutch `Koop 15 @ 76,50 EUR` and German `Kauf 1 zu je 211 USD (US88160R1014)` name no product, and the Dutch form no ISIN either. The trade takes them from the row's `Product` and `ISIN` columns, and is only a trade when one of the two carries an ISIN.
+- Czech calls both legs of a currency conversion `FX vyúčtování konverze měny`, so the sign of the amount decides between `fxCredit` and `fxDebit`.
+- Rows that would need a new movement kind stay `unknown`: money-market fund price changes and conversions, corporate actions (splits, ISIN changes, delistings), promotions, transaction taxes, other fees (ADR/GDR, SOFORT, corporate-action fees), bond coupons and accrued interest, payments in lieu of a dividend, and deposit reservations.
 
 ### The fallback, for every other language
 
-DEGIRO's column layout is the same in every language: twelve columns, where the mutation and the balance each pair a currency cell with an amount cell under a single header label — so the 9th and 11th header cells (0-based indices 8 and 10) are always empty. `genericDialect` recognises that shape and nothing else, reading no header text at all, and interprets dates (`DD-MM-YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`) and numbers by the same per-value rules as the English dialect. It is registered last, so a French or English export never reaches it.
+DEGIRO's column layout is the same in every language: twelve columns, where the mutation and the balance each pair a currency cell with an amount cell under a single header label — so the 9th and 11th header cells (0-based indices 8 and 10) are always empty. `genericDialect` recognises that shape and nothing else, reading no header text at all, and interprets dates (`DD-MM-YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`) and numbers by the same per-value rules as the English dialect. It is registered last, so an export one of the language-aware dialects recognises never reaches it.
 
 Because it is a guess, it says so: `dialect.heuristic` is `true` and a warning lands on `ParseResult.warnings` naming the line it was decided on. Nothing silently depends on it.
 
 ```ts
-const result = parseDegiroCsv(dutchCsv);
+const result = parseDegiroCsv(italianCsv);
 result.dialect.id; // 'generic'
 result.dialect.heuristic; // true
 result.warnings[0].message; // 'No dialect recognised this header, so the "generic" fallback ...'
@@ -139,7 +148,7 @@ result.warnings[0].message; // 'No dialect recognised this header, so the "gener
 Two smaller guesses ride along:
 
 - If the header tokenizes to a single cell, `parseDegiroCsv` retries with `;` and then a tab before giving up. Passing `delimiter` explicitly turns this off.
-- `structuralTradeMatcher` and `structuralFxTradeMatcher` recover trades from the _shape_ of a description — `<qty> <product>@<price> <CCY> (<ISIN>)` — and take the side from the sign of the mutation, money out being a buy. Both run at a negative priority, after every language-aware matcher has declined, so `Koop 1.060 SMI ETF@106,02 CHF (CH0019852802)` classifies as a buy without anyone teaching the library Dutch.
+- `structuralTradeMatcher` and `structuralFxTradeMatcher` recover trades from the _shape_ of a description — `<qty> <product>@<price> <CCY> (<ISIN>)` — and take the side from the sign of the mutation, money out being a buy. Both run at a negative priority, after every language-aware matcher has declined, so `Acquisto 1.060 SMI ETF@106,02 CHF (CH0019852802)` classifies as a buy without anyone teaching the library the Italian verb.
 
 Descriptions with no such shape — a dividend, a fee, a deposit in a language the matchers do not know — stay `unknown` with their amounts intact, so balances still reconcile and cash still adds up. Register a matcher for the wording to name them.
 
@@ -298,16 +307,16 @@ Every stage is pluggable. You rarely need to fork the library to support a new e
 
 ### Custom dialect (new locale / layout)
 
-French and English are built in; here is a third locale — Dutch headers, dot thousands, comma decimals:
+Five header languages are built in; here is a sixth — Italian headers, dot thousands, comma decimals:
 
 ```ts
 import { parseDegiroCsv, DEGIRO_COLUMNS, parseDegiroDateTime, type Dialect } from 'libdegiro';
 
-const dutchDialect: Dialect = {
-  id: 'nl',
-  label: 'DEGIRO Dutch',
+const italianDialect: Dialect = {
+  id: 'it',
+  label: 'DEGIRO Italian',
   columns: DEGIRO_COLUMNS, // the shared positional layout
-  matches: (header) => header.includes('Omschrijving') && header.includes('Mutatie'),
+  matches: (header) => header.includes('Descrizione') && header.includes('Variazioni'),
   parseDecimal: (raw) => {
     const n = raw.trim().replace(/\./g, '').replace(',', '.'); // 1.060,20
     return /^-?\d+(\.\d+)?$/.test(n) ? n : null;
@@ -316,12 +325,12 @@ const dutchDialect: Dialect = {
   parseDate: (d) => parseDegiroDateTime(d),
 };
 
-parseDegiroCsv(csv, { dialects: [dutchDialect] });
+parseDegiroCsv(csv, { dialects: [italianDialect] });
 // or force it, skipping detection:
-parseDegiroCsv(csv, { dialect: dutchDialect });
+parseDegiroCsv(csv, { dialect: italianDialect });
 ```
 
-A dialect registered through `dialects` replaces the built-ins, including the fallback; pass `createDefaultDialectRegistry().register(dutchDialect, { prepend: true })` to keep them.
+A dialect registered through `dialects` replaces the built-ins, including the fallback; pass `createDefaultDialectRegistry().register(italianDialect, { prepend: true })` to keep them.
 
 ### Custom classifier (new movement description)
 

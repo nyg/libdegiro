@@ -1,8 +1,11 @@
 import type { CsvRow } from '../csv/tokenizer'
 import { UnknownDialectError } from '../errors'
+import { germanDialect } from './de'
 import { englishDialect } from './en'
+import { spanishDialect } from './es'
 import { frenchDialect } from './fr'
 import { genericDialect } from './generic'
+import { dutchDialect } from './nl'
 import type { Dialect } from './types'
 
 /** Options for registering a dialect. */
@@ -64,7 +67,14 @@ export class DialectRegistry {
 
 /** Registry pre-populated with all built-in dialects. */
 export function createDefaultDialectRegistry(): DialectRegistry {
-   return new DialectRegistry([frenchDialect, englishDialect, genericDialect])
+   return new DialectRegistry([
+      frenchDialect,
+      englishDialect,
+      dutchDialect,
+      germanDialect,
+      spanishDialect,
+      genericDialect,
+   ])
 }
 
 /** Shared registry containing the built-in dialects. */

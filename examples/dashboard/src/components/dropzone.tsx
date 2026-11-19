@@ -60,7 +60,8 @@ export function Dropzone() {
             <div className="space-y-1">
                <p className="font-medium">Drop your DEGIRO Account.csv here</p>
                <p className="text-muted-foreground text-sm">
-                  English and French statements are both recognised.
+                  French, English, Dutch, German and Spanish headers are recognised, and
+                  other languages by their column layout.
                </p>
             </div>
 

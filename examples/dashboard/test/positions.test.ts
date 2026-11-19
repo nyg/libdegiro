@@ -208,12 +208,12 @@ describe('describeHealthProblems', () => {
    })
 
    it('warns when the layout fallback read the file, ahead of any rounding note', () => {
-      const dutchCsv = [
-         'Datum,Tijd,Valutadatum,Product,ISIN,Omschrijving,FX,Mutatie,,Saldo,,Order Id',
-         '18-11-2024,00:00,18-11-2024,,,Storting,,CHF,"9.000,00",CHF,"9.000,00",',
+      const italianCsv = [
+         'Data,Ora,Data Valore,Prodotto,ISIN,Descrizione,Borsa,Variazioni,,Saldo,,ID Ordine',
+         '18-11-2024,00:00,18-11-2024,,,Deposito,,CHF,"9.000,00",CHF,"9.000,00",',
          '',
       ].join('\n')
-      const parsed = parseDegiroCsv(dutchCsv)
+      const parsed = parseDegiroCsv(italianCsv)
       const report = withDiscrepancies(buildHealthReport(parsed, 0), [
          discrepancy('rounding', '-0.01'),
       ])

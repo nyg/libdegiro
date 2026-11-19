@@ -29,6 +29,9 @@ const cases: readonly (readonly [string, string])[] = [
    ['a cash transfer of nothing but spaces', `Virement vers ${' '.repeat(REPEAT)}`],
    ['a cash transfer amount of nothing but spaces', `Virement vers x:${' '.repeat(REPEAT)}1 EUR`],
    ['an FX conversion trailed by spaces', `FX${' '.repeat(REPEAT)}`],
+   ['a German trade price separator trailed by spaces', `Kauf 1 zu je ${' '.repeat(REPEAT)}`],
+   ['a cash transfer with no colon and a run of spaces', `Overboeking van ${' '.repeat(REPEAT)}1 EUR`],
+   ['a Czech FX leg trailed by spaces', `FX vyučtování${' '.repeat(REPEAT)}`],
 ]
 
 describe('hostile descriptions are classified in linear time', () => {
