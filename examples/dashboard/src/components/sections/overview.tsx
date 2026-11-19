@@ -6,8 +6,13 @@ import { useAnalytics } from '@/state/statement-context'
 
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
 
+function interestHint(lending: boolean, charged: boolean): string {
+   const credited = lending ? 'Interest and securities lending' : 'Credited by flatexDEGIRO'
+   return charged ? `${credited}, less interest charged` : credited
+}
+
 export function OverviewSection() {
-   const { portfolio, feeTotals, range, result } = useAnalytics()
+   const { portfolio, feeTotals, range, result, margin } = useAnalytics()
    const openPositions = portfolio.positions.filter((position) => position.quantity !== 0)
    const invested = portfolio.invested.filter((amount) => !amount.isZero())
    const lending = portfolio.securitiesLending.length > 0
@@ -29,7 +34,11 @@ export function OverviewSection() {
                title="Cash balance"
                amounts={portfolio.cashByCurrency}
                hideZero
-               hint="Latest per currency"
+               hint={
+                  margin.since
+                     ? `Latest per currency. Below zero is a margin loan, since ${formatDate(margin.since)}`
+                     : 'Latest per currency'
+               }
             />
             <StatCard
                title="Dividends"
@@ -48,7 +57,7 @@ export function OverviewSection() {
                title={lending ? 'Interest & lending' : 'Interest'}
                amounts={sumByCurrency([...portfolio.interest, ...portfolio.securitiesLending])}
                hideZero
-               hint={lending ? 'Interest and securities lending' : 'Credited by flatexDEGIRO'}
+               hint={interestHint(lending, margin.interestCharged.length > 0)}
             />
             <StatCard
                title="Withholding tax"

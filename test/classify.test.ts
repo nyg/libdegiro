@@ -167,15 +167,31 @@ describe('individual matchers', () => {
       expect(classify(record('Flatex Interest Income')).kind).toBe('interest')
    })
 
+   it('classifies interest charged on a negative balance', () => {
+      // Given
+      const charge = record('Flatex Interest', { mutation: Money.of('-16.93', 'CHF') })
+
+      // When
+      const movement = classify(charge)
+
+      // Then
+      expect(movement.kind).toBe('interest')
+      expect(movement.amount?.toString()).toBe('-16.93 CHF')
+   })
+
    it('classifies securities-lending income whatever the month, keeping its amount', () => {
-      const income = classify(
-         record('Revenus provenant du Prêt de titres - Août', { mutation: new Money('0.07', 'EUR') }),
-      )
-      expect(income.kind).toBe('securitiesLending')
-      expect(income.amount?.toString()).toBe('0.07 EUR')
-      expect(classify(record('Revenus provenant du Prêt de titres - Décembre')).kind).toBe(
-         'securitiesLending',
-      )
+      // Given
+      const august = record('Revenus provenant du Prêt de titres - Août', {
+         mutation: Money.of('0.07', 'EUR'),
+      })
+      const december = record('Revenus provenant du Prêt de titres - Décembre')
+
+      // When
+      const movements = [classify(august), classify(december)]
+
+      // Then
+      expect(movements.map((m) => m.kind)).toEqual(['securitiesLending', 'securitiesLending'])
+      expect(movements[0]?.amount?.toString()).toBe('0.07 EUR')
    })
 
    it('falls back to unknown for unrecognised descriptions', () => {
