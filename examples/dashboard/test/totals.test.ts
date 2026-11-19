@@ -197,7 +197,13 @@ describe('income totals', () => {
 
    it('adds the whole statement up column by column', () => {
       const totals = totalIncome(result.movements, fx)
-      const sum = [totals.dividends, totals.dividendTax, totals.interest, totals.fees]
+      const sum = [
+         totals.dividends,
+         totals.dividendTax,
+         totals.interest,
+         totals.securitiesLending,
+         totals.fees,
+      ]
          .map((entry) => entry.amount!)
          .reduce((total, amount) => total.add(amount))
       expect(totals.total.amount?.amount.toFixed(6)).toBe(sum.amount.toFixed(6))

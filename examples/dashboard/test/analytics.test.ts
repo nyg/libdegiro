@@ -206,11 +206,41 @@ describe('incomeByYear', () => {
 
    it('keeps every bucket per-currency', () => {
       for (const year of years) {
-         for (const bucket of [year.dividends, year.dividendTax, year.interest, year.fees]) {
+         for (const bucket of [
+            year.dividends,
+            year.dividendTax,
+            year.interest,
+            year.securitiesLending,
+            year.fees,
+         ]) {
             const currencies = bucket.map((money) => money.currency)
             expect(new Set(currencies).size).toBe(currencies.length)
          }
       }
+   })
+})
+
+describe('securities-lending income', () => {
+   const lent = parseDegiroCsv(
+      [
+         'Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre',
+         '01-09-2025,10:00,31-08-2025,,,Revenus provenant du Prêt de titres - Août,,EUR,"0,07",EUR,"100,07",',
+         '01-08-2025,10:00,31-07-2025,,,Revenus provenant du Prêt de titres - Juillet,,EUR,"0,05",EUR,"100,00",',
+         '',
+      ].join('\n'),
+   )
+
+   it('counts as income in a bucket of its own', () => {
+      const [year] = incomeByYear(lent.movements)
+      expect(year?.securitiesLending.map(String)).toEqual(['0.12 EUR'])
+      expect(year?.interest).toEqual([])
+      expect(year?.total.amount?.toString()).toBe('0.12 EUR')
+   })
+
+   it('no longer needs attention in Parse health', () => {
+      const { health } = buildAnalytics(lent)
+      expect(health.unknown).toEqual([])
+      expect(health.ok).toBe(true)
    })
 })
 

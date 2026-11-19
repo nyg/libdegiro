@@ -10,6 +10,7 @@ import {
    frenchDialect,
    mapRow,
    type Matcher,
+   Money,
    type Movement,
    type RawRecord,
    tokenizeCsv,
@@ -164,6 +165,17 @@ describe('individual matchers', () => {
       expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep')
       expect(classify(record('Versement de fonds')).kind).toBe('deposit')
       expect(classify(record('Flatex Interest Income')).kind).toBe('interest')
+   })
+
+   it('classifies securities-lending income whatever the month, keeping its amount', () => {
+      const income = classify(
+         record('Revenus provenant du Prêt de titres - Août', { mutation: new Money('0.07', 'EUR') }),
+      )
+      expect(income.kind).toBe('securitiesLending')
+      expect(income.amount?.toString()).toBe('0.07 EUR')
+      expect(classify(record('Revenus provenant du Prêt de titres - Décembre')).kind).toBe(
+         'securitiesLending',
+      )
    })
 
    it('falls back to unknown for unrecognised descriptions', () => {

@@ -113,6 +113,7 @@ export interface YearlyIncome {
    readonly dividends: readonly Money[]
    readonly dividendTax: readonly Money[]
    readonly interest: readonly Money[]
+   readonly securitiesLending: readonly Money[]
    readonly fees: readonly Money[]
    readonly total: ConvertedTotal
 }
@@ -121,6 +122,7 @@ export interface IncomeTotals {
    readonly dividends: ConvertedTotal
    readonly dividendTax: ConvertedTotal
    readonly interest: ConvertedTotal
+   readonly securitiesLending: ConvertedTotal
    readonly fees: ConvertedTotal
    readonly total: ConvertedTotal
 }
@@ -129,6 +131,7 @@ const KINDS_BY_BUCKET = {
    dividends: new Set(['dividend']),
    dividendTax: new Set(['dividendTax']),
    interest: new Set(['interest']),
+   securitiesLending: new Set(['securitiesLending']),
    fees: new Set(['brokerageFee', 'connectivityFee']),
 } as const
 
@@ -161,6 +164,7 @@ export function incomeByYear(
          dividends: amountsOf(rows, KINDS_BY_BUCKET.dividends),
          dividendTax: amountsOf(rows, KINDS_BY_BUCKET.dividendTax),
          interest: amountsOf(rows, KINDS_BY_BUCKET.interest),
+         securitiesLending: amountsOf(rows, KINDS_BY_BUCKET.securitiesLending),
          fees: amountsOf(rows, KINDS_BY_BUCKET.fees),
          total: totalIn(datedOf(rows, EVERY_KIND), fx),
       }))
@@ -175,6 +179,7 @@ export function totalIncome(
       dividends: totalIn(datedOf(movements, KINDS_BY_BUCKET.dividends), fx),
       dividendTax: totalIn(datedOf(movements, KINDS_BY_BUCKET.dividendTax), fx),
       interest: totalIn(datedOf(movements, KINDS_BY_BUCKET.interest), fx),
+      securitiesLending: totalIn(datedOf(movements, KINDS_BY_BUCKET.securitiesLending), fx),
       fees: totalIn(datedOf(movements, KINDS_BY_BUCKET.fees), fx),
       total: totalIn(datedOf(movements, EVERY_KIND), fx),
    }

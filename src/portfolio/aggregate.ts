@@ -77,6 +77,7 @@ export interface PortfolioSummary {
    readonly netExternalFlow: readonly Money[]
    /** Total interest income per currency. */
    readonly interest: readonly Money[]
+   readonly securitiesLending: readonly Money[]
 }
 
 const isTrade = (m: Movement): m is TradeMovement => m.kind === 'buy' || m.kind === 'sell'
@@ -368,5 +369,6 @@ export function summarizePortfolio(
       withdrawals: sumByCurrency(externalFlows(movements).filter((a) => a.isNegative())),
       netExternalFlow: sumByCurrency(externalFlows(movements)),
       interest: sumByCurrency(amountsOf(movements, new Set(['interest']))),
+      securitiesLending: sumByCurrency(amountsOf(movements, new Set(['securitiesLending']))),
    }
 }

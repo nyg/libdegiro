@@ -34,7 +34,7 @@ src/
   csv/         tokenizer (papaparse) + Node row stream + shared options
   dialects/    Dialect interface, French/English/layout-fallback dialects, DialectRegistry
   records/     RawRecord — a normalised, dialect-agnostic row
-  classify/    Matcher registry + matchers (trade, fx, dividend, fees, interest, cash, structural)
+  classify/    Matcher registry + matchers (trade, fx, dividend, fees, interest, securities lending, cash, structural)
   group/       GroupingStrategy pipeline + Transaction union
   validate/    per-currency balance reconciliation
   portfolio/   positions, FIFO realized P/L, cash and fee roll-ups

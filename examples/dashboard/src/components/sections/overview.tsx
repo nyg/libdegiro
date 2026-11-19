@@ -1,3 +1,5 @@
+import { sumByCurrency } from 'libdegiro'
+
 import { StatCard } from '@/components/stat-card'
 import { formatDate } from '@/lib/format'
 import { useAnalytics } from '@/state/statement-context'
@@ -8,6 +10,7 @@ export function OverviewSection() {
    const { portfolio, feeTotals, range, result } = useAnalytics()
    const openPositions = portfolio.positions.filter((position) => position.quantity !== 0)
    const invested = portfolio.invested.filter((amount) => !amount.isZero())
+   const lending = portfolio.securitiesLending.length > 0
 
    return (
       <div className="flex flex-col gap-6">
@@ -42,10 +45,10 @@ export function OverviewSection() {
                hint={`${feeTotals.count.brokerage + feeTotals.count.connectivity} charges`}
             />
             <StatCard
-               title="Interest"
-               amounts={portfolio.interest}
+               title={lending ? 'Interest & lending' : 'Interest'}
+               amounts={sumByCurrency([...portfolio.interest, ...portfolio.securitiesLending])}
                hideZero
-               hint="Credited by flatexDEGIRO"
+               hint={lending ? 'Interest and securities lending' : 'Credited by flatexDEGIRO'}
             />
             <StatCard
                title="Withholding tax"
