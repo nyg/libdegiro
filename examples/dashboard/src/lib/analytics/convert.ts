@@ -20,13 +20,18 @@ export function totalIn(
    entries: Iterable<DatedAmount>,
    fx: PortfolioOptions | null | undefined,
 ): ConvertedTotal {
-   const dated = [...entries]
+   const all = [...entries]
    const rates = fx?.rates ?? null
    const base = referenceCurrency(fx)
+   // A zero needs no rate: counting its currency would mark an exact total as converted.
+   const dated = all.filter((entry) => !entry.amount.isZero())
    const currencies = new Set(dated.map((entry) => entry.amount.currency))
 
    if (currencies.size === 0) {
-      return base === null ? UNAVAILABLE : { amount: Money.zero(base), converted: false }
+      const booked = new Set(all.map((entry) => entry.amount.currency))
+      const only = booked.size === 1 ? ([...booked][0] ?? null) : null
+      const currency = base ?? only
+      return currency === null ? UNAVAILABLE : { amount: Money.zero(currency), converted: false }
    }
 
    const only = currencies.size === 1 ? ([...currencies][0] ?? null) : null
@@ -62,7 +67,8 @@ export function totalAsOf(
    fx: PortfolioOptions | null | undefined,
 ): ConvertedTotal {
    const dated = [...amounts]
-   if (on === null && new Set(dated.map((amount) => amount.currency)).size > 1) {
+   const nonZero = dated.filter((amount) => !amount.isZero())
+   if (on === null && new Set(nonZero.map((amount) => amount.currency)).size > 1) {
       return UNAVAILABLE
    }
    return totalIn(

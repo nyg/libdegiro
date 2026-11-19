@@ -50,7 +50,8 @@ annual exchange connectivity, a plain-English summary, monthly and cumulative
 charts, cost by instrument, and a table matching **every** fee to the order that
 caused it.
 
-Also: an overview of cash, funding, dividends and interest; cash balance over
+Also: an overview of cash, funding, dividends and interest, in one currency
+once exchange rates are on; cash balance over
 time per currency, red below zero; the margin loan, when there is one, with its
 periods, largest debit, interest charged and size against the cost of positions;
 positions with what the shares cost — the ones still held and
@@ -66,7 +67,7 @@ fee and FX legs attached; and a parse-health panel with balance reconciliation.
 - **No cross-currency totals until you ask for one.** DEGIRO books fees in EUR
   against trades that settle in CHF, and libdegiro never nets across currencies.
   Neither does this app by default: every figure is per currency. Turning on
-  **Convert with ECB rates** adds two opt-in exceptions, both marked `≈` and both
+  **Convert with ECB rates** adds three opt-in exceptions, all marked `≈` and all
   explained by a tooltip.
 
   First, the figures a statement genuinely cannot produce on its own — realised
@@ -81,7 +82,12 @@ fee and FX legs attached; and a parse-health panel with balance reconciliation.
   Positions total adds up cost bases and realised figures that each span many
   bookings, so it converts at the statement's last day and says so.
 
-  A converted figure never replaces a booked one — it fills a cell that would
+  Third, the Overview: each card shows one total in the reference currency, so
+  the account reads on one scale, while the other tabs keep the breakdown by
+  currency. Flows convert on the day each was booked; cash and the cost of the
+  positions held convert at the statement's last day.
+
+  Outside the Overview, a converted figure never replaces a booked one — it fills a cell that would
   otherwise read `n/a`, or opens a view you have to select. Per-currency columns,
   the activity log, every transfer row and the balance reconciliation are never
   converted.
