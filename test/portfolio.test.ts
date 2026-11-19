@@ -198,6 +198,19 @@ describe('summarizePortfolio on the sample export', () => {
       expect(summary.interest.length).toBeGreaterThan(0)
    })
 
+   it('totals securities-lending income per currency, apart from interest', () => {
+      const csv = [
+         HEADER,
+         '01-09-2025,10:00,31-08-2025,,,Revenus provenant du Prêt de titres - Août,,EUR,"0,07",EUR,"100,07",',
+         '01-08-2025,10:00,31-07-2025,,,Revenus provenant du Prêt de titres - Juillet,,EUR,"0,05",EUR,"100,00",',
+         '01-08-2025,10:00,31-07-2025,,,Flatex Interest Income,,CHF,"0,10",CHF,"0,10",',
+         '',
+      ].join('\n')
+      const lent = summarizePortfolio(parseDegiroCsv(csv).movements)
+      expect(lent.securitiesLending.map(String)).toEqual(['0.12 EUR'])
+      expect(lent.interest.map(String)).toEqual(['0.1 CHF'])
+   })
+
    it('costs the shares still held, and only those', () => {
       const csv = [
          'Date,Heure,Date de,Produit,Code ISIN,Description,FX,Mouvements,,Solde,,ID Ordre',

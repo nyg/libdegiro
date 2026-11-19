@@ -1,3 +1,5 @@
+import { sumByCurrency } from 'libdegiro'
+
 import { StatCard } from '@/components/stat-card'
 import { referenceCurrency } from '@/lib/analytics'
 import { formatDate } from '@/lib/format'
@@ -5,10 +7,16 @@ import { useAnalytics } from '@/state/statement-context'
 
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
 
+function interestHint(lending: boolean, charged: boolean): string {
+   const credited = lending ? 'Interest and securities lending' : 'Credited by flatexDEGIRO'
+   return charged ? `${credited}, less interest charged` : credited
+}
+
 export function OverviewSection() {
    const { portfolio, feeTotals, range, result, margin, overview, fx } = useAnalytics()
    const openPositions = portfolio.positions.filter((position) => position.quantity !== 0)
    const invested = portfolio.invested.filter((amount) => !amount.isZero())
+   const lending = portfolio.securitiesLending.length > 0
    const base = referenceCurrency(fx)
    const booked = `Other currencies converted into ${base} at the ECB rate of the day each amount was booked.`
    const standing = range
@@ -65,16 +73,12 @@ export function OverviewSection() {
                hint={`${feeTotals.count.brokerage + feeTotals.count.connectivity} charges`}
             />
             <StatCard
-               title="Interest"
+               title={lending ? 'Interest & lending' : 'Interest'}
                total={overview.interest}
                converted={booked}
-               amounts={portfolio.interest}
+               amounts={sumByCurrency([...portfolio.interest, ...portfolio.securitiesLending])}
                hideZero
-               hint={
-                  margin.interestCharged.length > 0
-                     ? 'Credited by flatexDEGIRO, less interest charged'
-                     : 'Credited by flatexDEGIRO'
-               }
+               hint={interestHint(lending, margin.interestCharged.length > 0)}
             />
             <StatCard
                title="Withholding tax"

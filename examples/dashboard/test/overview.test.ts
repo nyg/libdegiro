@@ -36,6 +36,23 @@ describe('buildOverviewTotals', () => {
       expect(overview.interest).toEqual({ amount: Money.zero('CHF'), converted: false })
    })
 
+   it('adds securities lending to the interest figure', () => {
+      // Given
+      const lent = parseDegiroCsv(
+         [
+            HEADER,
+            '02-09-2025,10:00,02-09-2025,,,Revenus provenant du Prêt de titres - Août,,EUR,"0,07",EUR,"100,17",',
+            '01-09-2025,10:00,01-09-2025,,,Flatex Interest Income,,EUR,"0,10",EUR,"100,10",',
+         ].join('\n'),
+      )
+
+      // When
+      const { overview } = buildAnalytics(lent, null)
+
+      // Then
+      expect(overview.interest).toEqual({ amount: Money.of('0.17', 'EUR'), converted: false })
+   })
+
    it('has no single figure across currencies without rates', () => {
       // When
       const { overview } = buildAnalytics(twoCurrencies, null)

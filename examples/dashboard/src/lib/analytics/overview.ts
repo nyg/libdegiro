@@ -30,6 +30,7 @@ export function buildOverviewTotals(
       readonly portfolio: PortfolioSummary
       readonly positions: PositionRows
       readonly incomeTotals: IncomeTotals
+      readonly interestAndLending: ConvertedTotal
       readonly range: DateRange | null
    },
    fx: PortfolioOptions | null | undefined,
@@ -40,7 +41,7 @@ export function buildOverviewTotals(
       cash: totalAsOf(input.portfolio.cashByCurrency, input.range?.to ?? null, fx),
       dividends: input.incomeTotals.dividends,
       fees: input.incomeTotals.fees,
-      interest: input.incomeTotals.interest,
+      interest: input.interestAndLending,
       dividendTax: input.incomeTotals.dividendTax,
    }
 }

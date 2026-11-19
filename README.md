@@ -149,7 +149,7 @@ Descriptions with no such shape — a dividend, a fee, a deposit in a language t
 
 Each row is classified into a `Movement` — a discriminated union on `kind`:
 
-`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` · `connectivityFee` · `interest` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` · `cashTransfer` · `deposit` · `withdrawal` · `unknown`
+`buy` · `sell` · `dividend` · `dividendTax` · `capitalReturn` · `brokerageFee` · `connectivityFee` · `interest` · `securitiesLending` · `fxCredit` · `fxDebit` · `fxTrade` · `cashSweep` · `cashTransfer` · `deposit` · `withdrawal` · `unknown`
 
 ```ts
 for (const m of result.movements) {

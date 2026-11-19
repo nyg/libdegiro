@@ -15,6 +15,7 @@ import {
    incomeByYear,
    type IncomeTotals,
    totalIncome,
+   totalInterestAndLending,
    type YearlyIncome,
 } from './income'
 import { buildMarginReport, type LoanToCost, loanToCost, type MarginReport } from './margin'
@@ -91,7 +92,17 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
       health: buildHealthReport(result, unparseableExchanges),
       margin,
       loanToCost: loanToCost(margin.borrowed, positions.activeTotals.cost, range?.to ?? null, fx),
-      overview: buildOverviewTotals({ cashFlow, portfolio, positions, incomeTotals, range }, fx),
+      overview: buildOverviewTotals(
+         {
+            cashFlow,
+            portfolio,
+            positions,
+            incomeTotals,
+            interestAndLending: totalInterestAndLending(result.movements, fx),
+            range,
+         },
+         fx,
+      ),
       currencies: balanceCurrencies(result.movements),
       range,
       fx: fx ?? null,

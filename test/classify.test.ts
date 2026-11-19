@@ -179,6 +179,24 @@ describe('individual matchers', () => {
       expect(movement.amount?.toString()).toBe('-16.93 CHF')
    })
 
+   it('classifies securities-lending income in French, Dutch and Spanish, keeping its amount', () => {
+      // Given
+      const august = record('Revenus provenant du Prêt de titres - Août', {
+         mutation: Money.of('0.07', 'EUR'),
+      })
+      const december = record('Revenus provenant du Prêt de titres - Décembre')
+      const june = record('Inkomsten uit Securities Lending - Juni')
+      const october = record('Ingresos por Préstamo de Valores - Octubre')
+      const march = record('Ingresos procedentes del préstamo de valores - Marzo')
+
+      // When
+      const movements = [august, december, june, october, march].map(classify)
+
+      // Then
+      expect(movements.map((m) => m.kind)).toEqual(Array(5).fill('securitiesLending'))
+      expect(movements[0]?.amount?.toString()).toBe('0.07 EUR')
+   })
+
    it('falls back to unknown for unrecognised descriptions', () => {
       expect(classify(record('Some brand new DEGIRO movement')).kind).toBe('unknown')
    })

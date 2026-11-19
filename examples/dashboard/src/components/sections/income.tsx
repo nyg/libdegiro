@@ -17,7 +17,7 @@ import { formatDate, formatPercent } from '@/lib/format'
 import { useAnalytics } from '@/state/statement-context'
 
 const TOTAL_METHOD =
-   'Dividends, withholding tax, interest and fees added together, each line converted on the day it was booked at the ECB reference rate. A figure marked ≈ came out of a rate rather than off the statement.'
+   'Dividends, withholding tax, interest, securities lending and fees added together, each line converted on the day it was booked at the ECB reference rate. A figure marked ≈ came out of a rate rather than off the statement.'
 
 const TOTAL_CONVERTED =
    'Booked in more than one currency and combined through ECB reference rates, each line converted on the day it was booked.'
@@ -40,6 +40,7 @@ function TotalCell({ total }: { total: ConvertedTotal }) {
 
 export function IncomeSection() {
    const { dividends, income, incomeTotals } = useAnalytics()
+   const lending = income.some((year) => year.securitiesLending.length > 0)
 
    return (
       <div className="flex flex-col gap-6">
@@ -60,6 +61,9 @@ export function IncomeSection() {
                            <TableHead className="text-right">Dividends</TableHead>
                            <TableHead className="text-right">Withholding tax</TableHead>
                            <TableHead className="text-right">Interest</TableHead>
+                           {lending ? (
+                              <TableHead className="text-right">Securities lending</TableHead>
+                           ) : null}
                            <TableHead className="text-right">Fees</TableHead>
                            <TableHead className="text-right">
                               <Tooltip>
@@ -96,6 +100,16 @@ export function IncomeSection() {
                               <TableCell>
                                  <MoneyList amounts={year.interest} size="sm" hideZero className="items-end" />
                               </TableCell>
+                              {lending ? (
+                                 <TableCell>
+                                    <MoneyList
+                                       amounts={year.securitiesLending}
+                                       size="sm"
+                                       hideZero
+                                       className="items-end"
+                                    />
+                                 </TableCell>
+                              ) : null}
                               <TableCell>
                                  <MoneyList amounts={year.fees} size="sm" hideZero className="items-end" />
                               </TableCell>
@@ -109,6 +123,7 @@ export function IncomeSection() {
                            <TotalCell total={incomeTotals.dividends} />
                            <TotalCell total={incomeTotals.dividendTax} />
                            <TotalCell total={incomeTotals.interest} />
+                           {lending ? <TotalCell total={incomeTotals.securitiesLending} /> : null}
                            <TotalCell total={incomeTotals.fees} />
                            <TotalCell total={incomeTotals.total} />
                         </TableRow>

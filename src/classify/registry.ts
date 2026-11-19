@@ -10,6 +10,7 @@ import { capitalReturnMatcher,dividendMatcher, dividendTaxMatcher } from './matc
 import { brokerageFeeMatcher, connectivityFeeMatcher } from './matchers/fees'
 import { fxConversionMatcher,fxTradeMatcher } from './matchers/fx'
 import { interestMatcher } from './matchers/interest'
+import { securitiesLendingMatcher } from './matchers/securitiesLending'
 import { structuralFxTradeMatcher, structuralTradeMatcher } from './matchers/structural'
 import { tradeMatcher } from './matchers/trade'
 import type { Matcher, Movement } from './types'
@@ -83,6 +84,7 @@ export const defaultMatchers: readonly Matcher[] = [
    brokerageFeeMatcher,
    connectivityFeeMatcher,
    interestMatcher,
+   securitiesLendingMatcher,
    cashSweepMatcher,
    cashTransferMatcher,
    depositMatcher,

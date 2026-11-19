@@ -12,6 +12,7 @@ export type MovementKind =
    | 'brokerageFee'
    | 'connectivityFee'
    | 'interest'
+   | 'securitiesLending'
    | 'fxCredit'
    | 'fxDebit'
    | 'fxTrade'
@@ -77,6 +78,8 @@ export interface ConnectivityFeeMovement extends BaseMovement<'connectivityFee'>
 /** Interest credited (positive) or charged (negative), e.g. on a margin loan. */
 export type InterestMovement = BaseMovement<'interest'>
 
+export type SecuritiesLendingMovement = BaseMovement<'securitiesLending'>
+
 /** One leg of a currency conversion (`Opération de change - Crédit/Débit`). */
 export interface FxConversionMovement extends BaseMovement<'fxCredit' | 'fxDebit'> {
    readonly direction: 'credit' | 'debit'
@@ -129,6 +132,7 @@ export type Movement =
    | BrokerageFeeMovement
    | ConnectivityFeeMovement
    | InterestMovement
+   | SecuritiesLendingMovement
    | FxConversionMovement
    | FxTradeMovement
    | CashSweepMovement
