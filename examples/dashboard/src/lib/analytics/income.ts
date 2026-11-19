@@ -139,6 +139,11 @@ const EVERY_KIND: ReadonlySet<string> = new Set(
    Object.values(KINDS_BY_BUCKET).flatMap((kinds) => [...kinds]),
 )
 
+const INTEREST_AND_LENDING: ReadonlySet<string> = new Set([
+   ...KINDS_BY_BUCKET.interest,
+   ...KINDS_BY_BUCKET.securitiesLending,
+])
+
 const amountsOf = (rows: readonly Movement[], kinds: ReadonlySet<string>): Money[] =>
    sumByCurrency(rows.filter((m) => kinds.has(m.kind)).map((m) => m.amount))
 
@@ -183,4 +188,11 @@ export function totalIncome(
       fees: totalIn(datedOf(movements, KINDS_BY_BUCKET.fees), fx),
       total: totalIn(datedOf(movements, EVERY_KIND), fx),
    }
+}
+
+export function totalInterestAndLending(
+   movements: readonly Movement[],
+   fx?: PortfolioOptions | null,
+): ConvertedTotal {
+   return totalIn(datedOf(movements, INTEREST_AND_LENDING), fx)
 }

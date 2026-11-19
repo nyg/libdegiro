@@ -15,9 +15,11 @@ import {
    incomeByYear,
    type IncomeTotals,
    totalIncome,
+   totalInterestAndLending,
    type YearlyIncome,
 } from './income'
 import { buildMarginReport, type LoanToCost, loanToCost, type MarginReport } from './margin'
+import { buildOverviewTotals, type OverviewTotals } from './overview'
 import { buildPositionRows, type PositionRows } from './positions'
 import { balanceCurrencies, type DateRange,statementRange } from './timeseries'
 
@@ -29,6 +31,7 @@ export * from './fees'
 export * from './health'
 export * from './income'
 export * from './margin'
+export * from './overview'
 export * from './positions'
 export * from './summary'
 export * from './timeseries'
@@ -55,6 +58,7 @@ export interface Analytics {
    readonly health: HealthReport
    readonly margin: MarginReport
    readonly loanToCost: LoanToCost
+   readonly overview: OverviewTotals
    /** Currencies that have a cash balance series, sorted. */
    readonly currencies: readonly string[]
    readonly range: DateRange | null
@@ -71,6 +75,8 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
    const range = statementRange(result.movements)
    const positions = buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null)
    const margin = buildMarginReport(result.movements)
+   const cashFlow = buildCashFlow(result.movements)
+   const incomeTotals = totalIncome(result.movements, fx)
 
    return {
       result,
@@ -79,13 +85,24 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
       fees,
       feeTotals: totalFees(fees.entries),
       feeContexts: explainFees(result),
-      cashFlow: buildCashFlow(result.movements),
+      cashFlow,
       dividends: dividendsByInstrument(result.movements),
       income: incomeByYear(result.movements, fx),
-      incomeTotals: totalIncome(result.movements, fx),
+      incomeTotals,
       health: buildHealthReport(result, unparseableExchanges),
       margin,
       loanToCost: loanToCost(margin.borrowed, positions.activeTotals.cost, range?.to ?? null, fx),
+      overview: buildOverviewTotals(
+         {
+            cashFlow,
+            portfolio,
+            positions,
+            incomeTotals,
+            interestAndLending: totalInterestAndLending(result.movements, fx),
+            range,
+         },
+         fx,
+      ),
       currencies: balanceCurrencies(result.movements),
       range,
       fx: fx ?? null,
