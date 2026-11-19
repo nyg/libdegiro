@@ -10,6 +10,7 @@ import {
    frenchDialect,
    mapRow,
    type Matcher,
+   Money,
    type Movement,
    type RawRecord,
    tokenizeCsv,
@@ -164,6 +165,18 @@ describe('individual matchers', () => {
       expect(classify(record('Degiro Cash Sweep Transfer')).kind).toBe('cashSweep')
       expect(classify(record('Versement de fonds')).kind).toBe('deposit')
       expect(classify(record('Flatex Interest Income')).kind).toBe('interest')
+   })
+
+   it('classifies interest charged on a negative balance', () => {
+      // Given
+      const charge = record('Flatex Interest', { mutation: Money.of('-16.93', 'CHF') })
+
+      // When
+      const movement = classify(charge)
+
+      // Then
+      expect(movement.kind).toBe('interest')
+      expect(movement.amount?.toString()).toBe('-16.93 CHF')
    })
 
    it('falls back to unknown for unrecognised descriptions', () => {

@@ -17,6 +17,7 @@ import {
    totalIncome,
    type YearlyIncome,
 } from './income'
+import { buildMarginReport, type LoanToCost, loanToCost, type MarginReport } from './margin'
 import { buildPositionRows, type PositionRows } from './positions'
 import { balanceCurrencies, type DateRange,statementRange } from './timeseries'
 
@@ -27,6 +28,7 @@ export * from './explain'
 export * from './fees'
 export * from './health'
 export * from './income'
+export * from './margin'
 export * from './positions'
 export * from './summary'
 export * from './timeseries'
@@ -51,6 +53,8 @@ export interface Analytics {
    readonly income: readonly YearlyIncome[]
    readonly incomeTotals: IncomeTotals
    readonly health: HealthReport
+   readonly margin: MarginReport
+   readonly loanToCost: LoanToCost
    /** Currencies that have a cash balance series, sorted. */
    readonly currencies: readonly string[]
    readonly range: DateRange | null
@@ -65,11 +69,13 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
 
    const portfolio = summarizePortfolio(result.movements, fx ?? undefined)
    const range = statementRange(result.movements)
+   const positions = buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null)
+   const margin = buildMarginReport(result.movements)
 
    return {
       result,
       portfolio,
-      positions: buildPositionRows(portfolio, fees.entries, fx, range?.to ?? null),
+      positions,
       fees,
       feeTotals: totalFees(fees.entries),
       feeContexts: explainFees(result),
@@ -78,6 +84,8 @@ export function buildAnalytics(result: ParseResult, fx?: PortfolioOptions | null
       income: incomeByYear(result.movements, fx),
       incomeTotals: totalIncome(result.movements, fx),
       health: buildHealthReport(result, unparseableExchanges),
+      margin,
+      loanToCost: loanToCost(margin.borrowed, positions.activeTotals.cost, range?.to ?? null, fx),
       currencies: balanceCurrencies(result.movements),
       range,
       fx: fx ?? null,

@@ -74,7 +74,7 @@ export interface ConnectivityFeeMovement extends BaseMovement<'connectivityFee'>
    readonly year: number | null
 }
 
-/** Interest income (`Flatex Interest Income`). */
+/** Interest credited (positive) or charged (negative), e.g. on a margin loan. */
 export type InterestMovement = BaseMovement<'interest'>
 
 /** One leg of a currency conversion (`Opération de change - Crédit/Débit`). */

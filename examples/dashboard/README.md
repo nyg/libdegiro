@@ -51,7 +51,9 @@ charts, cost by instrument, and a table matching **every** fee to the order that
 caused it.
 
 Also: an overview of cash, funding, dividends and interest; cash balance over
-time per currency; positions with what the shares cost — the ones still held and
+time per currency, red below zero; the margin loan, when there is one, with its
+periods, largest debit, interest charged and size against the cost of positions;
+positions with what the shares cost — the ones still held and
 the ones a sale consumed — their share of the open cost, and FIFO realised P/L;
 income year by year; a filterable activity log where a trade appears with its
 fee and FX legs attached; and a parse-health panel with balance reconciliation.
