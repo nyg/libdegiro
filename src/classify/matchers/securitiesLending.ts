@@ -1,6 +1,7 @@
 import type { Matcher } from '../types'
 
-const SECURITIES_LENDING = /^revenus?\s+provenant\s+du\s+pr[êe]t\s+de\s+titres\b/i
+const SECURITIES_LENDING =
+   /^(?:revenus?\s+provenant\s+du\s+pr[êe]t\s+de\s+titres|inkomsten\s+uit\s+securities\s+lending)\b/i
 
 export const securitiesLendingMatcher: Matcher = {
    name: 'securitiesLending',

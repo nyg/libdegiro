@@ -179,18 +179,23 @@ describe('individual matchers', () => {
       expect(movement.amount?.toString()).toBe('-16.93 CHF')
    })
 
-   it('classifies securities-lending income whatever the month, keeping its amount', () => {
+   it('classifies securities-lending income in French and Dutch, keeping its amount', () => {
       // Given
       const august = record('Revenus provenant du Prêt de titres - Août', {
          mutation: Money.of('0.07', 'EUR'),
       })
       const december = record('Revenus provenant du Prêt de titres - Décembre')
+      const june = record('Inkomsten uit Securities Lending - Juni')
 
       // When
-      const movements = [classify(august), classify(december)]
+      const movements = [classify(august), classify(december), classify(june)]
 
       // Then
-      expect(movements.map((m) => m.kind)).toEqual(['securitiesLending', 'securitiesLending'])
+      expect(movements.map((m) => m.kind)).toEqual([
+         'securitiesLending',
+         'securitiesLending',
+         'securitiesLending',
+      ])
       expect(movements[0]?.amount?.toString()).toBe('0.07 EUR')
    })
 
